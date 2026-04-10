@@ -198,25 +198,21 @@ const Timeline = forwardRef(function Timeline({ milestones, zoom, textSize = 'no
           const isPast = new Date(m.date) < today
           const alpha  = isPast ? 0.72 : 1
 
+          // Title wrap first — card height depends on number of lines
+          const titleLines = wrapTitle(m.title, TITLE_CHARS)
+          const cardH      = titleLines.length > 1 ? CARD_H2 : CARD_H1
+
           // Card y position — stacked outward from axis per lane
           let cardY, connY1, connY2
           if (m.above) {
-            cardY  = axisY - CONN_LEN - m.lane * CARD_STEP - CARD_H
+            cardY  = axisY - CONN_LEN - m.lane * CARD_STEP - cardH
             connY1 = axisY - 4
-            connY2 = cardY + CARD_H
+            connY2 = cardY + cardH
           } else {
             cardY  = axisY + CONN_LEN + m.lane * CARD_STEP
             connY1 = axisY + 4
             connY2 = cardY
           }
-
-          // Word-wrap title; card height varies based on number of title lines
-          const titleLines  = wrapTitle(m.title, TITLE_CHARS)
-          const twoLines    = titleLines.length > 1
-          const cardH       = twoLines ? CARD_H2 : CARD_H1
-
-          // Re-derive connY2 using actual card height (cardY was already set above)
-          const connY2actual = m.above ? cardY + cardH : cardY
 
           // Clamp card horizontally so it doesn't overflow SVG edges
           const cardX = Math.max(4, Math.min(x - CARD_W / 2, w - CARD_W - 4))
