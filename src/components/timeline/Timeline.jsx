@@ -325,7 +325,7 @@ const Timeline = forwardRef(function Timeline(
 
               {/* Vintage camera indicator — top-right corner */}
               {m.photo_uri && (
-                <g transform={`translate(${cardX + CARD_W - 17},${cardY + 3})`}
+                <g transform={`translate(${cardX + CARD_W - 21},${cardY + 3})`}
                    opacity={isHL ? 0.9 : 0.52}>
                   {/* body */}
                   <rect x={0} y={2.5} width={14} height={8} rx={1.3}
