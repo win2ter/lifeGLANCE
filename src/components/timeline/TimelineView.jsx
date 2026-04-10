@@ -237,12 +237,14 @@ export default function TimelineView({ milestones, setMilestones }) {
             onPastChange={i => {
               const clamped = Math.max(0, Math.min(i, past.length - 1))
               setPastIdx(clamped)
+              setSelectedId(null)
               const m = past[clamped]
               if (m) timelineRef.current?.panToMs(new Date(m.date).getTime())
             }}
             onFutureChange={i => {
               const clamped = Math.max(0, Math.min(i, future.length - 1))
               setFutureIdx(clamped)
+              setSelectedId(null)
               const m = future[clamped]
               if (m) timelineRef.current?.panToMs(new Date(m.date).getTime())
             }}
