@@ -70,6 +70,17 @@ export default function SettingsModal({
           </div>
         </div>
 
+        {/* ── Display ───────────────────────────────────────────────────── */}
+        <div className="settings-section">
+          <div className="settings-label">display</div>
+          <label className="settings-toggle-row">
+            <span className="settings-toggle-label">auto-cluster nearby milestones</span>
+            <input type="checkbox" className="settings-toggle"
+              checked={clustering}
+              onChange={e => onClusteringChange(e.target.checked)} />
+          </label>
+        </div>
+
         {/* ── Categories ────────────────────────────────────────────────── */}
         <div className="settings-section">
           <div className="settings-label">categories</div>
@@ -122,17 +133,6 @@ export default function SettingsModal({
               ))}
             </div>
           </div>
-        </div>
-
-        {/* ── Display ───────────────────────────────────────────────────── */}
-        <div className="settings-section">
-          <div className="settings-label">display</div>
-          <label className="settings-toggle-row">
-            <span className="settings-toggle-label">auto-cluster nearby milestones</span>
-            <input type="checkbox" className="settings-toggle"
-              checked={clustering}
-              onChange={e => onClusteringChange(e.target.checked)} />
-          </label>
         </div>
 
         {/* ── Data / backup ─────────────────────────────────────────────── */}
