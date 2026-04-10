@@ -3,11 +3,16 @@ import React, {
   useImperativeHandle, forwardRef,
 } from 'react'
 import { dateToX, getTimeRange, getTickMarks, assignLanes, getMsPerPx } from '../../utils/timeline'
+import { relativeLabel, formatDateDisplay } from '../../utils/dates'
 
-const LANE_GAP = 72   // px per lane from axis
+// Card dimensions (px, in SVG user-units at 1rem base)
+const CARD_W    = 160   // card width
+const CARD_H    = 58    // card height (3 lines of text)
+const CONN_LEN  = 18    // gap between axis and nearest card edge
+const CARD_STEP = CARD_H + 10  // vertical distance between stacked lanes
 
 const Timeline = forwardRef(function Timeline({ milestones, zoom, onMilestoneClick }, ref) {
-  const wrapRef  = useRef(null)
+  const wrapRef = useRef(null)
   const [size, setSize] = useState({ w: 800, h: 340 })
   const [panMs, setPanMs] = useState(0)
   const drag = useRef({ active: false, startX: 0, startPan: 0 })
@@ -26,14 +31,14 @@ const Timeline = forwardRef(function Timeline({ milestones, zoom, onMilestoneCli
   }, [])
 
   const { w, h } = size
-  const axisY    = Math.round(h * 0.5)
-  const today    = new Date()
-  const centerMs = today.getTime() + panMs
+  const axisY     = Math.round(h * 0.5)
+  const today     = new Date()
+  const centerMs  = today.getTime() + panMs
   const { startMs, endMs } = getTimeRange(zoom, centerMs)
-  const ticks    = getTickMarks(zoom, startMs, endMs, w)
-  const todayX   = dateToX(today.getTime(), startMs, endMs, w)
+  const ticks     = getTickMarks(zoom, startMs, endMs, w)
+  const todayX    = dateToX(today.getTime(), startMs, endMs, w)
   const withLanes = assignLanes(milestones)
-  const msPerPx  = getMsPerPx(zoom, w)
+  const msPerPx   = getMsPerPx(zoom, w)
 
   // ── Pan ─────────────────────────────────────────────────────────────────────
   const startDrag = useCallback((clientX) => {
@@ -74,7 +79,7 @@ const Timeline = forwardRef(function Timeline({ milestones, zoom, onMilestoneCli
         width={w}
         height={h}
         viewBox={`0 0 ${w} ${h}`}
-        style={{ display: 'block', fontSize: '1rem' }}
+        style={{ display: 'block', fontSize: '1rem', overflow: 'visible' }}
       >
         <defs>
           <linearGradient id="tl-left" x1="0" x2="1" y1="0" y2="0">
@@ -87,7 +92,7 @@ const Timeline = forwardRef(function Timeline({ milestones, zoom, onMilestoneCli
           </linearGradient>
         </defs>
 
-        {/* Tick marks */}
+        {/* ── Tick marks ──────────────────────────────────────────────────── */}
         {ticks.map((tick, i) => (
           <g key={i}>
             <line
@@ -110,13 +115,13 @@ const Timeline = forwardRef(function Timeline({ milestones, zoom, onMilestoneCli
           </g>
         ))}
 
-        {/* Axis line */}
+        {/* ── Axis line ───────────────────────────────────────────────────── */}
         <line
           x1={0} y1={axisY} x2={w} y2={axisY}
           stroke="rgba(232,224,208,0.18)" strokeWidth={1}
         />
 
-        {/* Today marker */}
+        {/* ── Today marker ────────────────────────────────────────────────── */}
         {todayX > -10 && todayX < w + 10 && (
           <g>
             <line
@@ -137,17 +142,35 @@ const Timeline = forwardRef(function Timeline({ milestones, zoom, onMilestoneCli
           </g>
         )}
 
-        {/* Milestone nodes */}
+        {/* ── Milestone cards ─────────────────────────────────────────────── */}
         {withLanes.map((m) => {
           const x = dateToX(new Date(m.date).getTime(), startMs, endMs, w)
-          if (x < -30 || x > w + 30) return null
+          if (x < -(CARD_W + 10) || x > w + CARD_W + 10) return null
 
-          const dir    = m.above ? -1 : 1
-          const nodeY  = axisY + dir * LANE_GAP * (m.lane + 1)
-          const labelY = m.above ? nodeY - 13 : nodeY + 19
           const isPast = new Date(m.date) < today
-          const alpha  = isPast ? 0.65 : 1
-          const label  = m.title.length > 20 ? m.title.slice(0, 20) + '…' : m.title
+          const alpha  = isPast ? 0.72 : 1
+
+          // Card y position — stacked outward from axis per lane
+          let cardY, connY1, connY2
+          if (m.above) {
+            cardY  = axisY - CONN_LEN - m.lane * CARD_STEP - CARD_H
+            connY1 = axisY - 4
+            connY2 = cardY + CARD_H
+          } else {
+            cardY  = axisY + CONN_LEN + m.lane * CARD_STEP
+            connY1 = axisY + 4
+            connY2 = cardY
+          }
+
+          // Clamp card horizontally so it doesn't overflow SVG edges
+          const cardX = Math.max(4, Math.min(x - CARD_W / 2, w - CARD_W - 4))
+
+          // Text content
+          const title   = m.title.length > 17 ? m.title.slice(0, 17) + '…' : m.title
+          const dateStr = formatDateDisplay(m.date, m.date_precision)
+          const relStr  = relativeLabel(m.date, m.date_precision)
+
+          const borderOpacity = isPast ? 0.35 : 0.65
 
           return (
             <g
@@ -156,37 +179,73 @@ const Timeline = forwardRef(function Timeline({ milestones, zoom, onMilestoneCli
               style={{ cursor: 'pointer' }}
               opacity={alpha}
             >
-              {/* Connector */}
+              {/* Axis anchor dot */}
+              <circle cx={x} cy={axisY} r={3.5} fill={m.color} opacity={0.85} />
+
+              {/* Connector line */}
               <line
-                x1={x} y1={axisY + dir * 5}
-                x2={x} y2={nodeY + (m.above ? 6 : -6)}
-                stroke={m.color} strokeWidth={1} opacity={0.35}
+                x1={x} y1={connY1}
+                x2={x} y2={connY2}
+                stroke={m.color} strokeWidth={1} opacity={0.3}
               />
-              {/* Node */}
-              <circle
-                cx={x} cy={nodeY} r={5.5}
-                fill={m.color}
+
+              {/* Card body */}
+              <rect
+                x={cardX} y={cardY}
+                width={CARD_W} height={CARD_H}
+                fill="rgba(13,15,22,0.96)"
+                stroke={m.color}
+                strokeOpacity={borderOpacity}
+                strokeWidth={1}
                 style={{
-                  filter: `drop-shadow(0 0 5px ${m.color}66)`,
-                  transformOrigin: `${x}px ${nodeY}px`,
                   animation: 'milestone-appear 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
+                  transformOrigin: `${x}px ${axisY}px`,
                 }}
               />
-              {/* Label */}
+
+              {/* Left accent bar */}
+              <rect
+                x={cardX} y={cardY}
+                width={3} height={CARD_H}
+                fill={m.color}
+                opacity={isPast ? 0.5 : 0.85}
+              />
+
+              {/* Title */}
               <text
-                x={x} y={labelY}
-                textAnchor="middle"
-                fill="rgba(232,224,208,0.82)"
-                fontSize="0.59em"
+                x={cardX + 10} y={cardY + 18}
+                fill="rgba(232,224,208,0.95)"
+                fontSize="0.6em"
+                fontFamily="'Courier Prime', monospace"
+                fontWeight="bold"
+              >
+                {title}
+              </text>
+
+              {/* Date */}
+              <text
+                x={cardX + 10} y={cardY + 34}
+                fill="rgba(232,224,208,0.45)"
+                fontSize="0.52em"
                 fontFamily="'Courier Prime', monospace"
               >
-                {label}
+                {dateStr}
+              </text>
+
+              {/* Relative time */}
+              <text
+                x={cardX + 10} y={cardY + 50}
+                fill="#C8A96E"
+                fontSize="0.52em"
+                fontFamily="'Courier Prime', monospace"
+              >
+                {relStr}
               </text>
             </g>
           )
         })}
 
-        {/* Edge fades */}
+        {/* ── Edge fades ───────────────────────────────────────────────────── */}
         <rect x={0}    y={0} width={70} height={h} fill="url(#tl-left)"  pointerEvents="none" />
         <rect x={w-70} y={0} width={70} height={h} fill="url(#tl-right)" pointerEvents="none" />
       </svg>

@@ -9,10 +9,10 @@ import { addMilestone, updateMilestone, deleteMilestone } from '../../data/miles
 const ZOOM_RANK = { decades: 4, years: 3, months: 2, weeks: 1 }
 
 const TEXT_SIZES = {
-  small:  '13px',
-  normal: '16px',
-  big:    '19px',
-  bigger: '22px',
+  small:  '19px',
+  normal: '22px',
+  big:    '26px',
+  bigger: '30px',
 }
 
 export default function TimelineView({ milestones, setMilestones }) {
