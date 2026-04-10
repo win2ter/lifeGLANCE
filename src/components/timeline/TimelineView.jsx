@@ -131,7 +131,7 @@ export default function TimelineView({ milestones, setMilestones }) {
     setPastIdx(0)
     setFutureIdx(0)
     setSelectedId(null)
-    setHighlightsActive(false)
+    setHighlightsActive(true)
   }
 
   // ── CRUD ─────────────────────────────────────────────────────────────────────
