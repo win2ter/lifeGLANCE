@@ -749,7 +749,7 @@ button, input, select, textarea {
 }
 
 /* ─── Settings Modal ────────────────────────────────────────────────────────── */
-.settings-sheet { max-width: 420px; width: 100%; }
+.settings-sheet { max-width: 500px; width: 100%; }
 
 .settings-section {
   display: flex;
