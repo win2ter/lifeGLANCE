@@ -541,8 +541,7 @@ button, input, select, textarea {
   line-height: 1.4;
   transition: color 0.15s, border-color 0.15s;
 }
-.stat-nav-btn:hover:not(:disabled) { color: var(--amber); border-color: var(--amber-dim); }
-.stat-nav-btn:disabled { opacity: 0.25; cursor: default; }
+.stat-nav-btn:hover { color: var(--amber); border-color: var(--amber-dim); }
 .stat-nav-pos { font-size: 0.56rem; color: var(--text-muted); letter-spacing: 0.04em; }
 
 /* ─── Header backup links ───────────────────────────────────────────────────── */

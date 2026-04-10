@@ -29,13 +29,13 @@ function StatMilestone({ m, align }) {
 // flip=false for future panel: ← goes to lower idx (sooner), → goes to higher idx (later)
 function NavRow({ idx, total, onChange, align, flip = false }) {
   if (total <= 1) return null
-  const canLeft  = flip ? idx < total - 1 : idx > 0
-  const canRight = flip ? idx > 0         : idx < total - 1
+  const prev = flip ? (idx + 1) % total       : (idx - 1 + total) % total
+  const next = flip ? (idx - 1 + total) % total : (idx + 1) % total
   return (
     <div className={`stat-nav-row ${align === 'right' ? 'stat-nav-row-right' : ''}`}>
-      <button className="stat-nav-btn" onClick={() => onChange(flip ? idx + 1 : idx - 1)} disabled={!canLeft}>←</button>
+      <button className="stat-nav-btn" onClick={() => onChange(prev)}>←</button>
       <span className="stat-nav-pos">{idx + 1}/{total}</span>
-      <button className="stat-nav-btn" onClick={() => onChange(flip ? idx - 1 : idx + 1)} disabled={!canRight}>→</button>
+      <button className="stat-nav-btn" onClick={() => onChange(next)}>→</button>
     </div>
   )
 }
