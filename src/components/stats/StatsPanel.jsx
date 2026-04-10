@@ -25,15 +25,17 @@ function StatMilestone({ m, align }) {
   )
 }
 
-function NavRow({ idx, total, onChange, align }) {
+// flip=true for past panel: ← goes to higher idx (older), → goes to lower idx (more recent)
+// flip=false for future panel: ← goes to lower idx (sooner), → goes to higher idx (later)
+function NavRow({ idx, total, onChange, align, flip = false }) {
   if (total <= 1) return null
-  const atStart = idx <= 0
-  const atEnd   = idx >= total - 1
+  const canLeft  = flip ? idx < total - 1 : idx > 0
+  const canRight = flip ? idx > 0         : idx < total - 1
   return (
     <div className={`stat-nav-row ${align === 'right' ? 'stat-nav-row-right' : ''}`}>
-      <button className="stat-nav-btn" onClick={() => onChange(idx - 1)} disabled={atStart}>←</button>
+      <button className="stat-nav-btn" onClick={() => onChange(flip ? idx + 1 : idx - 1)} disabled={!canLeft}>←</button>
       <span className="stat-nav-pos">{idx + 1}/{total}</span>
-      <button className="stat-nav-btn" onClick={() => onChange(idx + 1)} disabled={atEnd}>→</button>
+      <button className="stat-nav-btn" onClick={() => onChange(flip ? idx - 1 : idx + 1)} disabled={!canRight}>→</button>
     </div>
   )
 }
@@ -48,7 +50,7 @@ export default function StatsPanel({ past, future, pastIdx, futureIdx, onPastCha
           {past.length} milestone{past.length !== 1 ? 's' : ''}
         </div>
         {/* navigate further-back (←) and back-toward-now (→) */}
-        <NavRow idx={pastIdx} total={past.length} onChange={onPastChange} align="left" />
+        <NavRow idx={pastIdx} total={past.length} onChange={onPastChange} align="left" flip />
         {past[pastIdx] && <StatMilestone m={past[pastIdx]} align="left" />}
       </div>
 

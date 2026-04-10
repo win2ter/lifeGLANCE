@@ -130,7 +130,10 @@ export default function TimelineView({ milestones, setMilestones }) {
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a')
     a.href     = url
-    a.download = `lifeglance-${new Date().toISOString().slice(0, 10)}.json`
+    // Use local date so the filename matches the user's calendar day
+    const d    = new Date()
+    const stamp = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+    a.download = `lifeglance-${stamp}.json`
     a.click()
     URL.revokeObjectURL(url)
   }
