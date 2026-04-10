@@ -887,6 +887,66 @@ button, input, select, textarea {
   flex-wrap: wrap;
 }
 
+/* ─── Help modal ───────────────────────────────────────────────────────────── */
+.help-sheet { max-width: 420px; }
+
+.help-sheet-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.3em;
+  height: 1.3em;
+  border: 1.5px solid var(--amber);
+  border-radius: 50%;
+  font-size: 0.75rem;
+  line-height: 1;
+  margin-right: 0.35rem;
+  color: var(--amber);
+}
+
+.help-shortcuts-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.help-shortcuts-table tr + tr td { padding-top: 0.45rem; }
+
+.help-keys {
+  white-space: nowrap;
+  padding-right: 1rem;
+  vertical-align: middle;
+}
+.help-kbd {
+  display: inline-block;
+  font-family: var(--font);
+  font-size: 0.65rem;
+  color: var(--text);
+  background: rgba(232, 224, 208, 0.07);
+  border: 1px solid rgba(232, 224, 208, 0.22);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 0.15em 0.45em;
+  margin-right: 0.25rem;
+  line-height: 1.5;
+}
+.help-desc {
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  vertical-align: middle;
+}
+
+.help-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.75rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--border);
+}
+.help-footer-meta {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+}
+
 /* ─── Responsive ───────────────────────────────────────────────────────────── */
 @media (max-width: 480px) {
   .onboarding-prompt { font-size: 1.1rem; }

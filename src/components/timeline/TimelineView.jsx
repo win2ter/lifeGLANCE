@@ -4,6 +4,7 @@ import StatsPanel        from '../stats/StatsPanel'
 import AddMilestoneSheet from '../milestone/AddMilestoneSheet'
 import MilestoneDetail   from '../milestone/MilestoneDetail'
 import SettingsModal     from '../settings/SettingsModal'
+import HelpModal         from '../help/HelpModal'
 import MinimapBar        from '../minimap/MinimapBar'
 import TypewriterText    from '../ui/TypewriterText'
 import { ZOOM_LEVELS }   from '../../utils/timeline'
@@ -37,6 +38,7 @@ export default function TimelineView({ milestones, setMilestones }) {
   const [selectedId,    setSelectedId]    = useState(null)
   const [highlightsActive, setHighlightsActive] = useState(true)
   const [settingsOpen,  setSettingsOpen]  = useState(false)
+  const [helpOpen,      setHelpOpen]      = useState(false)
   const [categories,    setCategories]    = useState(loadCategories)
   const [panMs,         setPanMs]         = useState(0)
 
@@ -161,7 +163,7 @@ export default function TimelineView({ milestones, setMilestones }) {
   const keyStateRef = useRef(null)
   keyStateRef.current = {
     pastIdx, futureIdx, past, future, zoom,
-    addOpen, detail, settingsOpen,
+    addOpen, detail, settingsOpen, helpOpen,
     handlePastNav, handleFutureNav, handleJumpToToday, closeSheet,
   }
 
@@ -170,7 +172,7 @@ export default function TimelineView({ milestones, setMilestones }) {
       // Allow Escape through even when an input is focused (to close modals)
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) && e.key !== 'Escape') return
       const s = keyStateRef.current
-      const anyModal = s.addOpen || !!s.detail || s.settingsOpen
+      const anyModal = s.addOpen || !!s.detail || s.settingsOpen || s.helpOpen
 
       switch (e.key) {
         case 'ArrowLeft': {
@@ -210,14 +212,20 @@ export default function TimelineView({ milestones, setMilestones }) {
           break
         }
         case 's': case 'S': {
-          if (s.addOpen || !!s.detail) break
+          if (s.addOpen || !!s.detail || s.helpOpen) break
           if (!s.settingsOpen) setSettingsOpen(true)
           break
         }
+        case '?': {
+          if (s.addOpen || !!s.detail || s.settingsOpen) break
+          if (!s.helpOpen) setHelpOpen(true)
+          break
+        }
         case 'Escape': {
-          if (s.detail)        setDetail(null)
-          else if (s.addOpen)  s.closeSheet()
+          if (s.detail)            setDetail(null)
+          else if (s.addOpen)      s.closeSheet()
           else if (s.settingsOpen) setSettingsOpen(false)
+          else if (s.helpOpen)     setHelpOpen(false)
           break
         }
         default: break
@@ -319,9 +327,11 @@ export default function TimelineView({ milestones, setMilestones }) {
           </div>
         </div>
 
-        {/* Right: settings */}
+        {/* Right: settings + help */}
         <div className="header-right">
           <button className="action-link" onClick={() => setSettingsOpen(true)}>settings</button>
+          <span className="action-sep">·</span>
+          <button className="action-link" onClick={() => setHelpOpen(true)}>?</button>
         </div>
       </div>
 
@@ -416,6 +426,9 @@ export default function TimelineView({ milestones, setMilestones }) {
           onEdit={openEdit}
           onDelete={handleDelete}
         />
+      )}
+      {helpOpen && (
+        <HelpModal onClose={() => setHelpOpen(false)} />
       )}
       {settingsOpen && (
         <SettingsModal
