@@ -188,21 +188,25 @@ const Timeline = forwardRef(function Timeline(
 
         {/* ── Today marker ────────────────────────────────────────────────── */}
         {todayX > -10 && todayX < w + 10 && (() => {
-          const tDay  = today.toLocaleDateString('en-US', { weekday: 'short' }).toLowerCase()
-          const tDate = today.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toLowerCase()
+          const tDay  = today.toLocaleDateString('en-US', { weekday: 'long'  }).toLowerCase()
+          const tDate = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }).toLowerCase()
+          const tYear = today.getFullYear()
           return (
             <g>
-              <line x1={todayX} y1={42} x2={todayX} y2={h - 14}
+              <line x1={todayX} y1={54} x2={todayX} y2={h - 14}
                 stroke="#C8A96E" strokeWidth={1.5} strokeDasharray="4 4" opacity={0.75} />
-              <text x={todayX} y={11} textAnchor="middle"
-                fill="#C8A96E" fontSize="0.54em"
-                fontFamily="'Courier Prime', monospace" opacity={0.85}>today</text>
-              <text x={todayX} y={23} textAnchor="middle"
-                fill="#C8A96E" fontSize="0.48em"
-                fontFamily="'Courier Prime', monospace" opacity={0.6}>{tDay}</text>
+              <text x={todayX} y={10} textAnchor="middle"
+                fill="#C8A96E" fontSize="0.65em"
+                fontFamily="'Courier Prime', monospace" opacity={0.90}>today</text>
+              <text x={todayX} y={22} textAnchor="middle"
+                fill="#C8A96E" fontSize="0.60em"
+                fontFamily="'Courier Prime', monospace" opacity={0.70}>{tDay}</text>
               <text x={todayX} y={34} textAnchor="middle"
-                fill="#C8A96E" fontSize="0.48em"
-                fontFamily="'Courier Prime', monospace" opacity={0.6}>{tDate}</text>
+                fill="#C8A96E" fontSize="0.60em"
+                fontFamily="'Courier Prime', monospace" opacity={0.70}>{tDate}</text>
+              <text x={todayX} y={47} textAnchor="middle"
+                fill="#C8A96E" fontSize="0.65em" fontWeight="bold"
+                fontFamily="'Courier Prime', monospace" opacity={0.85}>{tYear}</text>
             </g>
           )
         })()}
