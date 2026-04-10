@@ -761,6 +761,17 @@ button, input, select, textarea {
   to   { opacity: 1; transform: scale(1); }
 }
 
+/* ─── Minimap / scrubber bar ────────────────────────────────────────────────── */
+.minimap-bar {
+  height: 40px;
+  flex-shrink: 0;
+  background: rgba(13,15,22,0.7);
+  border-top: 1px solid var(--border);
+  cursor: crosshair;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* ─── Settings Modal ────────────────────────────────────────────────────────── */
 .settings-sheet { max-width: 540px; width: 100%; }
 

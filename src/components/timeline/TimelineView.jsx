@@ -4,6 +4,7 @@ import StatsPanel        from '../stats/StatsPanel'
 import AddMilestoneSheet from '../milestone/AddMilestoneSheet'
 import MilestoneDetail   from '../milestone/MilestoneDetail'
 import SettingsModal     from '../settings/SettingsModal'
+import MinimapBar        from '../minimap/MinimapBar'
 import TypewriterText    from '../ui/TypewriterText'
 import { ZOOM_LEVELS }   from '../../utils/timeline'
 import { loadCategories } from '../../utils/colors'
@@ -21,27 +22,28 @@ const TEXT_SIZES = {
 const ZOOM_ANIM_MS = 380
 
 export default function TimelineView({ milestones, setMilestones }) {
-  const [zoom,        setZoom]       = useState('years')
-  const [zoomAnim,    setZoomAnim]   = useState('')
-  const [filter,      setFilter]     = useState('all')
-  const [addOpen,     setAddOpen]    = useState(false)
-  const [editTarget,  setEditTarget] = useState(null)
-  const [detail,      setDetail]     = useState(null)
-  const [textSize,    setTextSize]   = useState(
+  const [zoom,          setZoom]          = useState('years')
+  const [zoomAnim,      setZoomAnim]      = useState('')
+  const [filter,        setFilter]        = useState('all')
+  const [addOpen,       setAddOpen]       = useState(false)
+  const [editTarget,    setEditTarget]    = useState(null)
+  const [detail,        setDetail]        = useState(null)
+  const [textSize,      setTextSize]      = useState(
     () => localStorage.getItem('lifeglance-text-size') || 'normal'
   )
-  const [customYears, setCustomYears] = useState(15)
-  const [pastIdx,        setPastIdx]         = useState(0)
-  const [futureIdx,      setFutureIdx]       = useState(0)
-  const [selectedId,     setSelectedId]      = useState(null)
+  const [customYears,   setCustomYears]   = useState(15)
+  const [pastIdx,       setPastIdx]       = useState(0)
+  const [futureIdx,     setFutureIdx]     = useState(0)
+  const [selectedId,    setSelectedId]    = useState(null)
   const [highlightsActive, setHighlightsActive] = useState(true)
-  const [settingsOpen,   setSettingsOpen]    = useState(false)
-  const [categories,     setCategories]      = useState(loadCategories)
+  const [settingsOpen,  setSettingsOpen]  = useState(false)
+  const [categories,    setCategories]    = useState(loadCategories)
+  const [panMs,         setPanMs]         = useState(0)
 
-  const timelineRef = useRef(null)
-  const zoomWrapRef = useRef(null)
-  const zoomRef     = useRef('years')
-  const zoomLocked  = useRef(false)
+  const timelineRef  = useRef(null)
+  const zoomWrapRef  = useRef(null)
+  const zoomRef      = useRef('years')
+  const zoomLocked   = useRef(false)
 
   // Apply font size globally
   useEffect(() => {
@@ -91,12 +93,12 @@ export default function TimelineView({ milestones, setMilestones }) {
   const now    = new Date()
   const past   = [...filteredMilestones]
     .filter(m => new Date(m.date) < now)
-    .sort((a, b) => new Date(b.date) - new Date(a.date))   // most-recent first
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
   const future = [...filteredMilestones]
     .filter(m => new Date(m.date) >= now)
-    .sort((a, b) => new Date(a.date) - new Date(b.date))   // soonest first
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
 
-  // Clamp indices when lists shrink (filter change, deletion)
+  // Clamp indices when lists shrink
   useEffect(() => {
     setPastIdx(i => Math.min(i, Math.max(0, past.length - 1)))
   }, [past.length])
@@ -108,7 +110,26 @@ export default function TimelineView({ milestones, setMilestones }) {
     ? new Set([past[pastIdx]?.id, future[futureIdx]?.id].filter(Boolean))
     : new Set()
 
-  // ── Milestone click: first click selects + centers, second click opens detail ─
+  // ── Stat panel navigation (shared by buttons, keyboard, and swipe) ───────────
+  function handlePastNav(i) {
+    const clamped = Math.max(0, Math.min(i, past.length - 1))
+    setPastIdx(clamped)
+    setSelectedId(null)
+    setHighlightsActive(true)
+    const m = past[clamped]
+    if (m) timelineRef.current?.panToMs(new Date(m.date).getTime())
+  }
+
+  function handleFutureNav(i) {
+    const clamped = Math.max(0, Math.min(i, future.length - 1))
+    setFutureIdx(clamped)
+    setSelectedId(null)
+    setHighlightsActive(true)
+    const m = future[clamped]
+    if (m) timelineRef.current?.panToMs(new Date(m.date).getTime())
+  }
+
+  // ── Milestone click: first click selects + centers, second opens detail ───────
   function handleMilestoneClick(m) {
     if (highlightsActive && selectedId === m.id) {
       setDetail(m)
@@ -116,7 +137,6 @@ export default function TimelineView({ milestones, setMilestones }) {
       setSelectedId(m.id)
       setHighlightsActive(true)
       timelineRef.current?.panToMs(new Date(m.date).getTime())
-      // Sync stat panel to the selected milestone
       const pastI = past.findIndex(p => p.id === m.id)
       if (pastI !== -1) {
         setPastIdx(pastI)
@@ -135,6 +155,76 @@ export default function TimelineView({ milestones, setMilestones }) {
     setSelectedId(null)
     setHighlightsActive(true)
   }
+
+  // ── Keyboard shortcuts ────────────────────────────────────────────────────────
+  // Use a ref so the listener is registered once but always sees fresh state
+  const keyStateRef = useRef(null)
+  keyStateRef.current = {
+    pastIdx, futureIdx, past, future, zoom,
+    addOpen, detail, settingsOpen,
+    handlePastNav, handleFutureNav, handleJumpToToday, closeSheet,
+  }
+
+  useEffect(() => {
+    function onKey(e) {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return
+      const s = keyStateRef.current
+      const anyModal = s.addOpen || !!s.detail || s.settingsOpen
+
+      switch (e.key) {
+        case 'ArrowLeft': {
+          if (anyModal) break
+          e.preventDefault()
+          if (s.past.length > 0) s.handlePastNav((s.pastIdx + 1) % s.past.length)
+          break
+        }
+        case 'ArrowRight': {
+          if (anyModal) break
+          e.preventDefault()
+          if (s.future.length > 0) s.handleFutureNav((s.futureIdx + 1) % s.future.length)
+          break
+        }
+        case 'ArrowUp': {
+          if (anyModal) break
+          e.preventDefault()
+          const upIdx = ZOOM_LEVELS.indexOf(s.zoom)
+          if (upIdx < ZOOM_LEVELS.length - 1) handleZoomRef.current(ZOOM_LEVELS[upIdx + 1])
+          break
+        }
+        case 'ArrowDown': {
+          if (anyModal) break
+          e.preventDefault()
+          const downIdx = ZOOM_LEVELS.indexOf(s.zoom)
+          if (downIdx > 0) handleZoomRef.current(ZOOM_LEVELS[downIdx - 1])
+          break
+        }
+        case 't': case 'T': {
+          if (anyModal) break
+          s.handleJumpToToday()
+          break
+        }
+        case 'n': case 'N': {
+          if (s.settingsOpen || !!s.detail) break
+          if (!s.addOpen) setAddOpen(true)
+          break
+        }
+        case 's': case 'S': {
+          if (s.addOpen || !!s.detail) break
+          if (!s.settingsOpen) setSettingsOpen(true)
+          break
+        }
+        case 'Escape': {
+          if (s.detail)        setDetail(null)
+          else if (s.addOpen)  s.closeSheet()
+          else if (s.settingsOpen) setSettingsOpen(false)
+          break
+        }
+        default: break
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, []) // stable — reads fresh values from keyStateRef
 
   // ── CRUD ─────────────────────────────────────────────────────────────────────
   async function handleSave(data, existing) {
@@ -162,7 +252,6 @@ export default function TimelineView({ milestones, setMilestones }) {
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a')
     a.href     = url
-    // Use local date so the filename matches the user's calendar day
     const d    = new Date()
     const stamp = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
     a.download = `lifeglance-${stamp}.json`
@@ -185,6 +274,7 @@ export default function TimelineView({ milestones, setMilestones }) {
   }
 
   const isEmpty = filteredMilestones.length === 0 && milestones.length === 0
+  const customHalfMs = customYears * 365.25 * 24 * 3600 * 1000
 
   return (
     <div className="timeline-view">
@@ -197,7 +287,6 @@ export default function TimelineView({ milestones, setMilestones }) {
 
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-            {/* Zoom level */}
             <div className="zoom-tabs">
               {ZOOM_LEVELS.map(z => (
                 <button key={z}
@@ -212,7 +301,6 @@ export default function TimelineView({ milestones, setMilestones }) {
             <button className="action-link" onClick={() => setSettingsOpen(true)}>settings</button>
           </div>
 
-          {/* Zoom indicator / custom input */}
           <div className="zoom-indicator">
             {zoom === 'custom' ? (
               <div className="custom-zoom-row">
@@ -239,22 +327,8 @@ export default function TimelineView({ milestones, setMilestones }) {
           <StatsPanel
             past={past} future={future}
             pastIdx={pastIdx} futureIdx={futureIdx}
-            onPastChange={i => {
-              const clamped = Math.max(0, Math.min(i, past.length - 1))
-              setPastIdx(clamped)
-              setSelectedId(null)
-              setHighlightsActive(true)
-              const m = past[clamped]
-              if (m) timelineRef.current?.panToMs(new Date(m.date).getTime())
-            }}
-            onFutureChange={i => {
-              const clamped = Math.max(0, Math.min(i, future.length - 1))
-              setFutureIdx(clamped)
-              setSelectedId(null)
-              setHighlightsActive(true)
-              const m = future[clamped]
-              if (m) timelineRef.current?.panToMs(new Date(m.date).getTime())
-            }}
+            onPastChange={handlePastNav}
+            onFutureChange={handleFutureNav}
           />
         )}
 
@@ -264,9 +338,11 @@ export default function TimelineView({ milestones, setMilestones }) {
             milestones={filteredMilestones}
             zoom={zoom}
             textSize={textSize}
-            customHalfMs={customYears * 365.25 * 24 * 3600 * 1000}
+            customHalfMs={customHalfMs}
             highlightedIds={highlightedIds}
             onMilestoneClick={handleMilestoneClick}
+            panMs={panMs}
+            onPanMs={setPanMs}
           />
         </div>
 
@@ -283,6 +359,18 @@ export default function TimelineView({ milestones, setMilestones }) {
           </div>
         )}
       </div>
+
+      {/* ── Minimap ────────────────────────────────────────────────────────── */}
+      {!isEmpty && (
+        <MinimapBar
+          milestones={filteredMilestones}
+          panMs={panMs}
+          onPanDirect={setPanMs}
+          panToMs={(ms) => timelineRef.current?.panToMs(ms)}
+          zoom={zoom}
+          customHalfMs={customHalfMs}
+        />
+      )}
 
       {/* ── Bottom bar ─────────────────────────────────────────────────────── */}
       <div className="timeline-bottom">
@@ -327,8 +415,8 @@ export default function TimelineView({ milestones, setMilestones }) {
       )}
       {settingsOpen && (
         <SettingsModal
-          textSize={textSize}         onTextSizeChange={setTextSize}
-          categories={categories}     onCategoriesChange={setCategories}
+          textSize={textSize}       onTextSizeChange={setTextSize}
+          categories={categories}   onCategoriesChange={setCategories}
           milestones={milestones}
           onSaveBackup={handleSaveBackup}
           onRestoreFile={handleRestoreFile}

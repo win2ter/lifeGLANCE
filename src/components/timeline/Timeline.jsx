@@ -34,14 +34,14 @@ function wrapTitle(text, maxChars) {
 }
 
 const Timeline = forwardRef(function Timeline(
-  { milestones, zoom, textSize = 'normal', onMilestoneClick, customHalfMs = 0, highlightedIds },
+  { milestones, zoom, textSize = 'normal', onMilestoneClick, customHalfMs = 0, highlightedIds, panMs, onPanMs },
   ref
 ) {
   const remPx = REM_PX[textSize] || 22
 
   const CARD_W      = Math.round(remPx * 7.8)
   const TITLE_CHARS = Math.floor((CARD_W - 20) / (remPx * 0.6 * 0.6))
-  const CONN_LEN    = Math.round(remPx * 1.8)   // base connector gap axis→card
+  const CONN_LEN    = Math.round(remPx * 1.8)
   const TOP_PAD     = Math.round(remPx * 0.65)
   const TITLE_LH    = Math.round(remPx * 0.90)
   const SEC_GAP     = Math.round(remPx * 0.45)
@@ -50,41 +50,45 @@ const Timeline = forwardRef(function Timeline(
   const CARD_H1     = TOP_PAD + META_LH + SEC_GAP + META_LH + META_LH + BOT_PAD
   const CARD_H2     = TOP_PAD + META_LH + TITLE_LH + SEC_GAP + META_LH + META_LH + BOT_PAD
   const CARD_STEP   = CARD_H2 + Math.round(remPx * 0.55)
-  // Max jitter adds 60% to CONN_LEN — use this for lane-fit calculation so
-  // even the tallest connector never pushes a card off-screen
   const MAX_CONN    = Math.round(CONN_LEN * 1.6)
 
-  const wrapRef = useRef(null)
+  const wrapRef  = useRef(null)
   const [size, setSize] = useState({ w: 800, h: 340 })
-  const [panMs, setPanMs] = useState(0)
-  const panMsRef = useRef(0)
+  // panMsRef always tracks the latest value for animation calculations
+  const panMsRef = useRef(panMs)
   const animRef  = useRef(null)
-  const drag = useRef({ active: false, startX: 0, startPan: 0 })
+  const drag     = useRef({ active: false, startX: 0, startPan: 0 })
 
+  // Keep ref in sync when panMs changes from parent (e.g. minimap direct scrub)
   useEffect(() => { panMsRef.current = panMs }, [panMs])
 
-  // Shared smooth-pan helper: animate panMs from current to targetPan
+  // Shared smooth-pan helper
   const smoothPanTo = useCallback((targetPan) => {
     if (animRef.current) cancelAnimationFrame(animRef.current)
     const start = panMsRef.current
     const delta = targetPan - start
-    if (Math.abs(delta) < 500) { setPanMs(targetPan); return }
+    if (Math.abs(delta) < 500) {
+      panMsRef.current = targetPan
+      onPanMs(targetPan)
+      return
+    }
     const t0 = performance.now()
     const dur = 480
     function tick(now) {
       const p = Math.min((now - t0) / dur, 1)
       const eased = 1 - Math.pow(1 - p, 3)
-      setPanMs(start + delta * eased)
+      const val = start + delta * eased
+      panMsRef.current = val
+      onPanMs(val)
       if (p < 1) animRef.current = requestAnimationFrame(tick)
     }
     animRef.current = requestAnimationFrame(tick)
-  }, [])
+  }, [onPanMs])
 
   // Expose imperative methods to parent
   useImperativeHandle(ref, () => ({
     resetPan: () => smoothPanTo(0),
-    // Center the timeline on any UTC timestamp (ms)
-    panToMs: (targetMs) => smoothPanTo(targetMs - Date.now()),
+    panToMs:  (targetMs) => smoothPanTo(targetMs - Date.now()),
   }), [smoothPanTo])
 
   // Measure container
@@ -106,21 +110,22 @@ const Timeline = forwardRef(function Timeline(
   const ticks    = getTickMarks(zoom, startMs, endMs, w)
   const todayX   = dateToX(today.getTime(), startMs, endMs, w)
   const msPerPx  = getMsPerPx(zoom, w, customHalfMs)
-  // Use max possible connector length so no jittered card overflows
   const maxLane  = Math.max(0, Math.floor((axisY - MAX_CONN - CARD_H2 - 16) / CARD_STEP))
   const withLanes = assignLanes(milestones, maxLane, msPerPx * CARD_W)
 
   // ── Pan ─────────────────────────────────────────────────────────────────────
+  // startDrag reads panMsRef so it doesn't need panMs as a dep
   const startDrag = useCallback((clientX) => {
     if (animRef.current) cancelAnimationFrame(animRef.current)
-    drag.current = { active: true, startX: clientX, startPan: panMs }
-  }, [panMs])
+    drag.current = { active: true, startX: clientX, startPan: panMsRef.current }
+  }, [])
 
   const moveDrag = useCallback((clientX) => {
     if (!drag.current.active) return
-    const dx = clientX - drag.current.startX
-    setPanMs(drag.current.startPan - dx * msPerPx)
-  }, [msPerPx])
+    const val = drag.current.startPan - (clientX - drag.current.startX) * msPerPx
+    panMsRef.current = val
+    onPanMs(val)
+  }, [msPerPx, onPanMs])
 
   const endDrag = useCallback(() => { drag.current.active = false }, [])
   const touchId = useRef(null)
@@ -220,7 +225,6 @@ const Timeline = forwardRef(function Timeline(
           const alpha  = isPast ? 0.72 : 1
           const isHL   = !!highlightedIds?.has(m.id)
 
-          // Per-card connector length jitter: base + 0–60% extra, seeded stable
           const connLen = CONN_LEN + Math.round((m.connRand ?? 0) * CONN_LEN * 0.6)
 
           const titleLines = wrapTitle(m.title, TITLE_CHARS)
@@ -249,7 +253,6 @@ const Timeline = forwardRef(function Timeline(
           const yMeta = (titleLines.length > 1 ? yT2 : yT1) + SEC_GAP + META_LH
           const yRel  = yMeta + META_LH
 
-          // CSS transform to scale highlighted card around its own centre
           const cx = cardX + CARD_W / 2
           const cy = cardY + cardH / 2
           const groupStyle = {
@@ -262,24 +265,20 @@ const Timeline = forwardRef(function Timeline(
 
           return (
             <g key={m.id} onClick={() => onMilestoneClick(m)} style={groupStyle} opacity={alpha}>
-              {/* Axis anchor dot — larger when highlighted */}
               <circle cx={x} cy={axisY}
                 r={isHL ? 5.5 : 3.5}
                 fill={m.color}
                 opacity={isHL ? 1 : 0.85} />
 
-              {/* Connector line */}
               <line x1={x} y1={connY1} x2={x} y2={connY2}
                 stroke={m.color} strokeWidth={isHL ? 1.5 : 1} opacity={isHL ? 0.6 : 0.3} />
 
-              {/* Highlight glow halo behind card */}
               {isHL && (
                 <rect x={cardX - 4} y={cardY - 4}
                   width={CARD_W + 8} height={cardH + 8}
                   fill={m.color} opacity={0.12} />
               )}
 
-              {/* Card body */}
               <rect
                 x={cardX} y={cardY}
                 width={CARD_W} height={cardH}
@@ -294,11 +293,9 @@ const Timeline = forwardRef(function Timeline(
                 }}
               />
 
-              {/* Left accent bar */}
               <rect x={cardX} y={cardY} width={3} height={cardH}
                 fill={m.color} opacity={isPast ? 0.5 : 0.85} />
 
-              {/* Title */}
               {titleLines.map((line, i) => (
                 <text key={i}
                   x={cardX + 10} y={i === 0 ? yT1 : yT2}
@@ -307,13 +304,11 @@ const Timeline = forwardRef(function Timeline(
                 >{line}</text>
               ))}
 
-              {/* Date */}
               <text x={cardX + 10} y={yMeta}
                 fill="rgba(232,224,208,0.45)"
                 fontSize="0.52em" fontFamily="'Courier Prime', monospace"
               >{dateStr}</text>
 
-              {/* Relative time */}
               <text x={cardX + 10} y={yRel}
                 fill="#C8A96E"
                 fontSize="0.52em" fontFamily="'Courier Prime', monospace"
