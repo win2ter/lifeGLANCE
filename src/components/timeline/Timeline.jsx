@@ -250,7 +250,7 @@ const Timeline = forwardRef(function Timeline(
         })()}
 
         {/* ── Milestone cards ─────────────────────────────────────────────── */}
-        {withLanes.map((m) => {
+        {withLanes.map((m, i) => {
           const x = dateToX(new Date(m.date).getTime(), startMs, endMs, w)
           if (x < -(CARD_W + 10) || x > w + CARD_W + 10) return null
 
@@ -298,6 +298,11 @@ const Timeline = forwardRef(function Timeline(
 
           return (
             <g key={m.id} onClick={() => onMilestoneClick(m)} style={groupStyle} opacity={alpha}>
+              <g style={{
+                animation: 'milestone-appear 0.45s cubic-bezier(0.22,1,0.36,1) both',
+                animationDelay: `${i * 28}ms`,
+                transformOrigin: `${x}px ${axisY}px`,
+              }}>
               <circle cx={x} cy={axisY}
                 r={isHL ? 5.5 : 3.5}
                 fill={m.color}
@@ -320,8 +325,6 @@ const Timeline = forwardRef(function Timeline(
                 strokeOpacity={borderOpacity}
                 strokeWidth={borderWidth}
                 style={{
-                  animation: 'milestone-appear 0.4s cubic-bezier(0.34,1.56,0.64,1) both',
-                  transformOrigin: `${x}px ${axisY}px`,
                   filter: isHL ? `drop-shadow(0 0 7px ${m.color}99)` : undefined,
                 }}
               />
@@ -329,9 +332,9 @@ const Timeline = forwardRef(function Timeline(
               <rect x={cardX} y={cardY} width={3} height={cardH}
                 fill={m.color} opacity={isPast ? 0.5 : 0.85} />
 
-              {titleLines.map((line, i) => (
-                <text key={i}
-                  x={cardX + 10} y={i === 0 ? yT1 : yT2}
+              {titleLines.map((line, li) => (
+                <text key={li}
+                  x={cardX + 10} y={li === 0 ? yT1 : yT2}
                   fill="rgba(232,224,208,0.95)"
                   fontSize="0.6em" fontFamily="'Courier Prime', monospace" fontWeight="bold"
                 >{line}</text>
@@ -368,6 +371,7 @@ const Timeline = forwardRef(function Timeline(
                     fill={m.color} />
                 </g>
               )}
+              </g>
             </g>
           )
         })}
