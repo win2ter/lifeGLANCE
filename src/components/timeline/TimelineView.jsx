@@ -303,35 +303,37 @@ export default function TimelineView({ milestones, setMilestones }) {
           <span className="logo-glance">GLANCE</span>
         </div>
 
-        {/* Center: zoom picker + indicator */}
+        {/* Center: zoom row + view picker */}
         <div className="header-center">
-          <div className="zoom-tabs">
-            {ZOOM_LEVELS.map(z => (
-              <button key={z}
-                className={`zoom-tab ${zoom === z ? 'active' : ''}`}
-                onClick={() => handleZoom(z)}>{z}</button>
-            ))}
-            <button
-              className={`zoom-tab ${zoom === 'custom' ? 'active' : ''}`}
-              onClick={() => handleZoom('custom')}>custom</button>
-          </div>
+          <div className="zoom-row">
+            <div className="zoom-tabs">
+              {ZOOM_LEVELS.map(z => (
+                <button key={z}
+                  className={`zoom-tab ${zoom === z ? 'active' : ''}`}
+                  onClick={() => handleZoom(z)}>{z}</button>
+              ))}
+              <button
+                className={`zoom-tab ${zoom === 'custom' ? 'active' : ''}`}
+                onClick={() => handleZoom('custom')}>custom</button>
+            </div>
 
-          <div className="zoom-indicator">
-            {zoom === 'custom' ? (
-              <div className="custom-zoom-row">
-                <span>±</span>
-                <input className="custom-zoom-input" type="number" min="1" max="200"
-                  value={customYears}
-                  onChange={e => {
-                    const v = parseInt(e.target.value, 10)
-                    if (!isNaN(v)) setCustomYears(Math.max(1, Math.min(200, v)))
-                  }} />
-                <span>yr</span>
-              </div>
-            ) : (
-              <TypewriterText key={zoom} text={`viewing: ${zoom}`}
-                options={{ delay: 38, jitter: 18 }} showCursor={false} hideCursorWhenDone />
-            )}
+            <div className="zoom-indicator">
+              {zoom === 'custom' ? (
+                <div className="custom-zoom-row">
+                  <span>±</span>
+                  <input className="custom-zoom-input" type="number" min="1" max="200"
+                    value={customYears}
+                    onChange={e => {
+                      const v = parseInt(e.target.value, 10)
+                      if (!isNaN(v)) setCustomYears(Math.max(1, Math.min(200, v)))
+                    }} />
+                  <span>yr</span>
+                </div>
+              ) : (
+                <TypewriterText key={zoom} text={`viewing: ${zoom}`}
+                  options={{ delay: 38, jitter: 18 }} showCursor={false} hideCursorWhenDone />
+              )}
+            </div>
           </div>
 
           <div className="view-tabs">

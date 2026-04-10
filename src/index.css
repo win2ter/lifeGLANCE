@@ -463,12 +463,18 @@ button, input, select, textarea {
 }
 .today-btn:hover { color: var(--amber); border-color: var(--amber-dim); }
 
-/* ─── Zoom indicator ───────────────────────────────────────────────────────── */
+/* ─── Zoom row (tabs + inline indicator) ──────────────────────────────────── */
+.zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
 .zoom-indicator {
   font-size: 0.6rem;
   color: var(--text-muted);
   letter-spacing: 0.07em;
-  min-height: 0.8rem;
+  white-space: nowrap;
 }
 
 .custom-zoom-row {
