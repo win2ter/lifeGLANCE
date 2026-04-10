@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { DEFAULT_CATEGORIES } from '../../utils/colors'
 import { buildDateFromParts } from '../../utils/dates'
 
@@ -19,7 +19,9 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
   const [precision, setPrecision] = useState(existing?.date_precision ?? 'month')
   const [category,  setCategory]  = useState(existing?.category  ?? 'personal')
   const [note,      setNote]      = useState(existing?.note       ?? '')
+  const [photoUri,  setPhotoUri]  = useState(existing?.photo_uri  ?? '')
   const [busy,      setBusy]      = useState(false)
+  const photoRef = useRef(null)
 
   // Pre-fill date from existing
   React.useEffect(() => {
@@ -47,6 +49,7 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
         category,
         color: selectedCat?.color,
         note: note.trim(),
+        photo_uri: photoUri,
       }, existing)
       onClose()
     } finally {
@@ -168,6 +171,37 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
             rows={3}
             maxLength={500}
             style={{ resize: 'vertical', lineHeight: 1.5 }}
+          />
+        </div>
+
+        {/* Photo */}
+        <div className="sheet-field">
+          <label className="field-label">photo (optional)</label>
+          {photoUri ? (
+            <div className="photo-preview-wrap">
+              <img src={photoUri} className="photo-preview" alt="milestone" />
+              <button type="button" className="photo-remove"
+                onClick={() => { setPhotoUri(''); if (photoRef.current) photoRef.current.value = '' }}>
+                remove
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="btn"
+              style={{ fontSize: '0.75rem', padding: '0.4rem 0.85rem', alignSelf: 'flex-start' }}
+              onClick={() => photoRef.current?.click()}>
+              attach photo
+            </button>
+          )}
+          <input
+            ref={photoRef} type="file" accept="image/*"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const file = e.target.files[0]
+              if (!file) return
+              const reader = new FileReader()
+              reader.onload = () => setPhotoUri(reader.result)
+              reader.readAsDataURL(file)
+            }}
           />
         </div>
 

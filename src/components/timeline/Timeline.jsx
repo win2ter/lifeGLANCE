@@ -322,6 +322,16 @@ const Timeline = forwardRef(function Timeline(
                 fill="#C8A96E"
                 fontSize="0.52em" fontFamily="'Courier Prime', monospace"
               >{relStr}</text>
+
+              {/* Photo indicator — tiny camera in top-right corner */}
+              {m.photo_uri && (
+                <g opacity={isHL ? 0.9 : 0.5}>
+                  <rect x={cardX + CARD_W - 14} y={cardY + 5} width={10} height={7} rx={1.5}
+                    fill="none" stroke={m.color} strokeWidth={0.8} />
+                  <circle cx={cardX + CARD_W - 9} cy={cardY + 8.5} r={2}
+                    fill={m.color} />
+                </g>
+              )}
             </g>
           )
         })}

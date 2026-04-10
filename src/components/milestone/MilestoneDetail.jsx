@@ -17,6 +17,13 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
           <button className="sheet-close" onClick={onClose}>✕</button>
         </div>
 
+        {/* Photo */}
+        {m.photo_uri && (
+          <div className="detail-photo-wrap">
+            <img src={m.photo_uri} alt={m.title} className="detail-photo" />
+          </div>
+        )}
+
         {/* Title */}
         <div className="detail-title">{m.title}</div>
 
