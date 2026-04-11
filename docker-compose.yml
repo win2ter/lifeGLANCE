@@ -1,0 +1,6 @@
+services:
+  lifeglance:
+    image: ghcr.io/krelltunez/lifeglance:latest
+    ports:
+      - "6868:80"
+    restart: unless-stopped
