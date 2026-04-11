@@ -20,7 +20,7 @@ export default function SettingsModal({
   clustering, onClusteringChange,
   birthday, onBirthdayChange,
   milestones,
-  onSaveBackup, onRestoreFile,
+  onExportImage, onSaveBackup, onRestoreFile,
   onClose,
 }) {
   const [newLabel, setNewLabel] = useState('')
@@ -155,6 +155,9 @@ export default function SettingsModal({
         <div className="settings-section">
           <div className="settings-label">data</div>
           <div className="settings-backup-row">
+            <button className="btn"
+              style={{ fontSize: '0.75rem', padding: '0.4rem 0.85rem' }}
+              onClick={onExportImage}>export image</button>
             <button className="btn"
               style={{ fontSize: '0.75rem', padding: '0.4rem 0.85rem' }}
               onClick={onSaveBackup}>save backup</button>

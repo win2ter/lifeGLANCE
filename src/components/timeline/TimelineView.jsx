@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
+import { toPng } from 'html-to-image'
 import Timeline          from './Timeline'
 import StatsPanel        from '../stats/StatsPanel'
 import AddMilestoneSheet from '../milestone/AddMilestoneSheet'
@@ -51,10 +52,11 @@ export default function TimelineView({ milestones, setMilestones }) {
     () => localStorage.getItem('lifeglance-birthday') || ''
   )
 
-  const timelineRef   = useRef(null)
-  const zoomWrapRef   = useRef(null)
-  const zoomRef       = useRef('years')
-  const zoomLocked    = useRef(false)
+  const timelineRef    = useRef(null)
+  const zoomWrapRef    = useRef(null)
+  const bodyRef        = useRef(null)
+  const zoomRef        = useRef('years')
+  const zoomLocked     = useRef(false)
   const customInputRef = useRef(null)
 
   // Apply font size globally
@@ -245,6 +247,11 @@ export default function TimelineView({ milestones, setMilestones }) {
           s.handleJumpToToday()
           break
         }
+        case 'e': case 'E': {
+          if (anyModal) break
+          handleExportImage()
+          break
+        }
         case 'n': case 'N': {
           if (s.settingsOpen || !!s.detail) break
           if (!s.addOpen) { e.preventDefault(); setAddOpen(true) }
@@ -343,6 +350,26 @@ export default function TimelineView({ milestones, setMilestones }) {
   function openEdit(m)  { setEditTarget(m); setAddOpen(true) }
   function closeSheet() { setAddOpen(false); setEditTarget(null) }
 
+  // ── Export image ─────────────────────────────────────────────────────────────
+  async function handleExportImage() {
+    const el = bodyRef.current
+    if (!el) return
+    try {
+      const dataUrl = await toPng(el, {
+        pixelRatio: 2,
+        backgroundColor: '#0F1117',
+      })
+      const a = document.createElement('a')
+      a.href = dataUrl
+      const d = new Date()
+      const stamp = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
+      a.download = `lifeglance-${stamp}.png`
+      a.click()
+    } catch (err) {
+      console.error('Export failed:', err)
+    }
+  }
+
   // ── Backup ───────────────────────────────────────────────────────────────────
   function handleSaveBackup() {
     const json = JSON.stringify(milestones, null, 2)
@@ -436,7 +463,7 @@ export default function TimelineView({ milestones, setMilestones }) {
       </div>
 
       {/* ── Body ───────────────────────────────────────────────────────────── */}
-      <div className="timeline-body">
+      <div className="timeline-body" ref={bodyRef}>
         {!isEmpty && (
           <StatsPanel
             past={past} future={future}
@@ -557,6 +584,7 @@ export default function TimelineView({ milestones, setMilestones }) {
             localStorage.setItem('lifeglance-birthday', v)
           }}
           milestones={milestones}
+          onExportImage={handleExportImage}
           onSaveBackup={handleSaveBackup}
           onRestoreFile={handleRestoreFile}
           onClose={() => setSettingsOpen(false)}
