@@ -15,8 +15,9 @@ export default function Step4Reveal({ onComplete, pastMilestone, futureMilestone
   // Count-up values
   const pastYears   = useCountUp(pastInfo?.years   ?? 0, { active: phase !== 'typing', duration: 1100 })
   const pastMonths  = useCountUp(pastInfo?.months  ?? 0, { active: phase !== 'typing', duration: 900,  delay: 800 })
-  const futureYears = useCountUp(futureInfo?.years  ?? 0, { active: phase === 'row2' || phase === 'cta', duration: 1100 })
-  const futureDays  = useCountUp(futureInfo?.days   ?? 0, { active: phase === 'row2' || phase === 'cta', duration: 1100 })
+  const futureYears  = useCountUp(futureInfo?.years  ?? 0, { active: phase === 'row2' || phase === 'cta', duration: 1100 })
+  const futureMonths = useCountUp(futureInfo?.months ?? 0, { active: phase === 'row2' || phase === 'cta', duration: 900, delay: 800 })
+  const futureDays   = useCountUp(futureInfo?.days   ?? 0, { active: phase === 'row2' || phase === 'cta', duration: 1100 })
 
   function handleTypingDone() {
     setTimeout(() => setPhase('row1'), 600)
@@ -33,9 +34,9 @@ export default function Step4Reveal({ onComplete, pastMilestone, futureMilestone
   const formatFutureTime = () => {
     if (!futureInfo) return '—'
     if (futureInfo.years > 0) {
-      const yr = `${futureDays > 0 ? futureInfo.years : futureYears} yr${futureInfo.years !== 1 ? 's' : ''}`
+      const yr = `${futureYears} yr${futureInfo.years !== 1 ? 's' : ''}`
       return futureInfo.months > 0
-        ? `in ${yr}, ${futureInfo.months} mo`
+        ? `in ${yr}, ${futureMonths} mo`
         : `in ${yr}`
     }
     return `in ${futureDays} day${futureInfo.days !== 1 ? 's' : ''}`
