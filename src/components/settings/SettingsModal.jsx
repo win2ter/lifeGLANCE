@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react'
 import { saveCategories } from '../../utils/colors'
+import { isMuted, setMuted } from '../../utils/audio'
 
 const TEXT_SIZES = { small: true, normal: true, big: true, bigger: true }
 
@@ -23,8 +24,9 @@ export default function SettingsModal({
   onExportImage, onSaveBackup, onRestoreFile,
   onClose,
 }) {
-  const [newLabel, setNewLabel] = useState('')
-  const [newColor, setNewColor] = useState(COLOR_PALETTE[0])
+  const [newLabel,  setNewLabel]  = useState('')
+  const [newColor,  setNewColor]  = useState(COLOR_PALETTE[0])
+  const [soundOn,   setSoundOn]   = useState(() => !isMuted())
   const fileRef = useRef(null)
 
   const usedIds = new Set(milestones.map(m => m.category))
@@ -79,6 +81,12 @@ export default function SettingsModal({
             <input type="checkbox" className="settings-toggle"
               checked={clustering}
               onChange={e => onClusteringChange(e.target.checked)} />
+          </label>
+          <label className="settings-toggle-row">
+            <span className="settings-toggle-label">sound effects</span>
+            <input type="checkbox" className="settings-toggle"
+              checked={soundOn}
+              onChange={e => { setSoundOn(e.target.checked); setMuted(!e.target.checked) }} />
           </label>
         </div>
 

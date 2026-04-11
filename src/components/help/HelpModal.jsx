@@ -13,6 +13,7 @@ const SHORTCUTS = [
   { keys: ['F'],              desc: 'future view'                       },
   { keys: ['⌘Z', 'Ctrl+Z'],  desc: 'undo'                              },
   { keys: ['⌘⇧Z', 'Ctrl+Y'], desc: 'redo'                              },
+  { keys: ['M'],              desc: 'mute / unmute sound'               },
   { keys: ['N'],              desc: 'new milestone'                     },
   { keys: ['E'],              desc: 'export image'                      },
   { keys: ['/'],              desc: 'search milestones'                 },

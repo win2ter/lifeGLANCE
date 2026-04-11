@@ -11,6 +11,7 @@ import TypewriterText    from '../ui/TypewriterText'
 import { ZOOM_LEVELS }   from '../../utils/timeline'
 import { loadCategories } from '../../utils/colors'
 import { addMilestone, updateMilestone, deleteMilestone, restoreMilestones } from '../../data/milestones'
+import * as audio from '../../utils/audio'
 
 const ZOOM_RANK = { decades: 5, '30yr': 4, years: 3, months: 2, weeks: 1, custom: 3.5 }
 
@@ -257,6 +258,7 @@ export default function TimelineView({ milestones, setMilestones }) {
     function onKey(e) {
       // Allow Escape through even when an input is focused (to close modals)
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) && e.key !== 'Escape') return
+      audio.init()   // unlock AudioContext on first keystroke (idempotent)
       const s = keyStateRef.current
       const anyModal = s.addOpen || !!s.detail || s.settingsOpen || s.helpOpen || s.searchOpen
 
@@ -264,13 +266,19 @@ export default function TimelineView({ milestones, setMilestones }) {
         case 'ArrowLeft': {
           if (anyModal) break
           e.preventDefault()
-          if (s.past.length > 0) s.handlePastNav((s.pastIdx + 1) % s.past.length)
+          if (s.past.length > 0) {
+            audio.playNavTick(false)
+            s.handlePastNav((s.pastIdx + 1) % s.past.length)
+          }
           break
         }
         case 'ArrowRight': {
           if (anyModal) break
           e.preventDefault()
-          if (s.future.length > 0) s.handleFutureNav((s.futureIdx + 1) % s.future.length)
+          if (s.future.length > 0) {
+            audio.playNavTick(true)
+            s.handleFutureNav((s.futureIdx + 1) % s.future.length)
+          }
           break
         }
         case 'ArrowUp': {
@@ -357,6 +365,11 @@ export default function TimelineView({ milestones, setMilestones }) {
           }
           break
         }
+        case 'm': case 'M': {
+          if (anyModal) break
+          audio.toggleMuted()
+          break
+        }
         case 'z': case 'Z': {
           if (anyModal) break
           if (e.metaKey || e.ctrlKey) {
@@ -400,12 +413,14 @@ export default function TimelineView({ milestones, setMilestones }) {
       const newMs = milestones.map(m => m.id === existing.id ? updated : m)
       pushHistory(newMs)
       setMilestones(newMs)
+      audio.playEditSave()
     } else {
       const m = await addMilestone(data)
       const newMs = [...milestones, m]
       pushHistory(newMs)
       setMilestones(newMs)
       setNewlyAddedId(m.id)
+      audio.playChime()
     }
   }
 

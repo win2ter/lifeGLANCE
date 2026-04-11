@@ -72,6 +72,7 @@ export default function Step4Reveal({ onComplete, pastMilestone, futureMilestone
           options={{ delay: 40, jitter: 20, startDelay: 300 }}
           onDone={handleTypingDone}
           hideCursorWhenDone
+          playSound
         />
       </div>
 
