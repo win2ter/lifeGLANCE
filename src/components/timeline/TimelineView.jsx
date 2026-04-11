@@ -5,6 +5,7 @@ import AddMilestoneSheet from '../milestone/AddMilestoneSheet'
 import MilestoneDetail   from '../milestone/MilestoneDetail'
 import SettingsModal     from '../settings/SettingsModal'
 import HelpModal         from '../help/HelpModal'
+import SearchModal       from '../search/SearchModal'
 import MinimapBar        from '../minimap/MinimapBar'
 import TypewriterText    from '../ui/TypewriterText'
 import { ZOOM_LEVELS }   from '../../utils/timeline'
@@ -39,6 +40,7 @@ export default function TimelineView({ milestones, setMilestones }) {
   const [highlightsActive, setHighlightsActive] = useState(true)
   const [settingsOpen,  setSettingsOpen]  = useState(false)
   const [helpOpen,      setHelpOpen]      = useState(false)
+  const [searchOpen,    setSearchOpen]    = useState(false)
   const [viewMode,      setViewMode]      = useState('all')
   const [categories,    setCategories]    = useState(loadCategories)
   const [panMs,         setPanMs]         = useState(0)
@@ -173,6 +175,21 @@ export default function TimelineView({ milestones, setMilestones }) {
     if (idx < ZOOM_LEVELS.length - 1) handleZoom(ZOOM_LEVELS[idx + 1])
   }
 
+  // ── Search select ────────────────────────────────────────────────────────────
+  function handleSearchSelect(m) {
+    setSearchOpen(false)
+    setSelectedId(m.id)
+    setHighlightsActive(true)
+    timelineRef.current?.panToMs(new Date(m.date).getTime())
+    const pastI = past.findIndex(p => p.id === m.id)
+    if (pastI !== -1) {
+      setPastIdx(pastI)
+    } else {
+      const futureI = future.findIndex(f => f.id === m.id)
+      if (futureI !== -1) setFutureIdx(futureI)
+    }
+  }
+
   // ── View mode ────────────────────────────────────────────────────────────────
   function handleViewMode(mode) {
     setViewMode(mode)
@@ -185,7 +202,7 @@ export default function TimelineView({ milestones, setMilestones }) {
   const keyStateRef = useRef(null)
   keyStateRef.current = {
     pastIdx, futureIdx, past, future, zoom,
-    addOpen, detail, settingsOpen, helpOpen,
+    addOpen, detail, settingsOpen, helpOpen, searchOpen,
     handlePastNav, handleFutureNav, handleJumpToToday, handleViewMode, closeSheet,
   }
 
@@ -194,7 +211,7 @@ export default function TimelineView({ milestones, setMilestones }) {
       // Allow Escape through even when an input is focused (to close modals)
       if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName) && e.key !== 'Escape') return
       const s = keyStateRef.current
-      const anyModal = s.addOpen || !!s.detail || s.settingsOpen || s.helpOpen
+      const anyModal = s.addOpen || !!s.detail || s.settingsOpen || s.helpOpen || s.searchOpen
 
       switch (e.key) {
         case 'ArrowLeft': {
@@ -263,8 +280,14 @@ export default function TimelineView({ milestones, setMilestones }) {
           s.handleViewMode('future')
           break
         }
+        case '/': {
+          if (s.addOpen || !!s.detail || s.settingsOpen || s.helpOpen) break
+          e.preventDefault()
+          if (!s.searchOpen) setSearchOpen(true)
+          break
+        }
         case '?': {
-          if (s.addOpen || !!s.detail || s.settingsOpen) break
+          if (s.addOpen || !!s.detail || s.settingsOpen || s.searchOpen) break
           if (!s.helpOpen) setHelpOpen(true)
           break
         }
@@ -291,6 +314,7 @@ export default function TimelineView({ milestones, setMilestones }) {
           else if (s.addOpen)      s.closeSheet()
           else if (s.settingsOpen) setSettingsOpen(false)
           else if (s.helpOpen)     setHelpOpen(false)
+          else if (s.searchOpen)   setSearchOpen(false)
           break
         }
         default: break
@@ -508,6 +532,13 @@ export default function TimelineView({ milestones, setMilestones }) {
           onEdit={openEdit}
           onDelete={handleDelete}
           birthday={birthday}
+        />
+      )}
+      {searchOpen && (
+        <SearchModal
+          milestones={milestones}
+          onSelect={handleSearchSelect}
+          onClose={() => setSearchOpen(false)}
         />
       )}
       {helpOpen && (

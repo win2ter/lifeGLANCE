@@ -12,6 +12,7 @@ const SHORTCUTS = [
   { keys: ['A'],        desc: 'all view'                          },
   { keys: ['F'],        desc: 'future view'                       },
   { keys: ['N'],        desc: 'new milestone'                     },
+  { keys: ['/'],        desc: 'search milestones'                 },
   { keys: ['S'],        desc: 'settings'                          },
   { keys: ['?'],        desc: 'help'                              },
   { keys: ['Esc'],      desc: 'close modal / exit input'          },
