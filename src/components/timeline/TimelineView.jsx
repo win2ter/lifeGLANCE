@@ -48,6 +48,7 @@ export default function TimelineView({ milestones, setMilestones }) {
   const [compactFilter, setCompactFilter] = useState(
     () => window.matchMedia('(max-width: 1200px)').matches
   )
+  const [filterOpen,    setFilterOpen]    = useState(false)
   const [clustering,    setClustering]    = useState(
     () => localStorage.getItem('lifeglance-clustering') !== 'false'
   )
@@ -78,6 +79,13 @@ export default function TimelineView({ milestones, setMilestones }) {
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
   }, [])
+
+  useEffect(() => {
+    if (!filterOpen) return
+    const close = () => setFilterOpen(false)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [filterOpen])
 
   // ── Zoom ─────────────────────────────────────────────────────────────────────
   const handleZoom = useCallback((newZoom) => {
@@ -687,18 +695,34 @@ export default function TimelineView({ milestones, setMilestones }) {
 
         {presentCategories.length > 0 && (
           compactFilter ? (
-            <div className="filter-compact">
+            <div className="filter-compact" onClick={e => e.stopPropagation()}>
               <button className={`filter-chip ${filter === 'all' ? 'active' : ''}`}
-                onClick={() => setFilter('all')}>all</button>
-              <select
-                className={`filter-select ${filter !== 'all' ? 'active' : ''}`}
-                value={filter === 'all' ? '' : filter}
-                onChange={e => setFilter(e.target.value || 'all')}>
-                <option value="">category</option>
-                {presentCategories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.label}</option>
-                ))}
-              </select>
+                onClick={() => { setFilter('all'); setFilterOpen(false) }}>all</button>
+              <div className="filter-dropdown-wrap">
+                <button
+                  className={`filter-chip filter-dropdown-btn ${filter !== 'all' ? 'active' : ''}`}
+                  onClick={() => setFilterOpen(o => !o)}>
+                  {filter !== 'all' ? (
+                    <>
+                      <span className="filter-dot"
+                        style={{ background: presentCategories.find(c => c.id === filter)?.color }} />
+                      {presentCategories.find(c => c.id === filter)?.label}
+                    </>
+                  ) : 'category'} ▾
+                </button>
+                {filterOpen && (
+                  <div className="filter-dropdown">
+                    {presentCategories.map(cat => (
+                      <button key={cat.id}
+                        className={`filter-dropdown-item ${filter === cat.id ? 'active' : ''}`}
+                        onClick={() => { setFilter(cat.id); setFilterOpen(false) }}>
+                        <span className="filter-dot" style={{ background: cat.color }} />
+                        {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           ) : (
             <div className="filter-chips-inline">

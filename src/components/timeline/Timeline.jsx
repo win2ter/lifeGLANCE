@@ -126,12 +126,11 @@ const Timeline = forwardRef(function Timeline(
   const ticks    = getTickMarks(zoom, startMs, endMs, w)
   const todayX   = dateToX(today.getTime(), startMs, endMs, w)
   const msPerPx  = getMsPerPx(zoom, w, customHalfMs)
-  const maxLane  = Math.max(0, Math.floor((axisY - MAX_CONN - CARD_H2 - 16) / CARD_STEP))
-
-  // ── Auto-density clustering ──────────────────────────────────────────────────
-  // Milestones whose axis dots fall within CLUSTER_THRESHOLD px of each other
-  // are collapsed into a badge instead of rendering as overlapping cards.
-  const CLUSTER_THRESHOLD = CARD_W * 0.4
+  // In compact mode: reserve 120px from the top for the today label, and
+  // cluster milestones more aggressively to reduce card pile-up near today.
+  const TOP_RESERVE        = compactLayout ? 120 : 16
+  const CLUSTER_THRESHOLD  = CARD_W * (compactLayout ? 0.6 : 0.4)
+  const maxLane  = Math.max(0, Math.floor((axisY - MAX_CONN - CARD_H2 - TOP_RESERVE) / CARD_STEP))
 
   const sorted = [...milestones].sort((a, b) => new Date(a.date) - new Date(b.date))
   const groups = []
