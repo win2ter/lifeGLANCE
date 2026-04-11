@@ -289,6 +289,7 @@ const Timeline = forwardRef(function Timeline(
           let cardY, connY1, connY2
           if (m.above) {
             cardY  = axisY - connLen - m.lane * CARD_STEP - cardH
+            cardY  = Math.max(84, cardY) // never overlap the today label (goes to ~y=68)
             connY1 = axisY - 4
             connY2 = cardY + cardH
           } else {
