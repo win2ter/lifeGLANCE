@@ -453,12 +453,12 @@ const Timeline = forwardRef(function Timeline(
                       {/* bottom arc: CW from 30° to 150° (under the bottom) */}
                       <path d="M 10.0,7.5 A 4,4 0 0,1 3.0,7.5"
                         fill="none" stroke={m.color} strokeWidth={0.9} strokeLinecap="round" />
-                      {/* arrowhead at 3 o'clock — points down, 1px clear of arc ends */}
-                      <polyline points="9.5,4.5 10.5,6.5 11.5,4.5"
+                      {/* arrowhead at 3 o'clock — wings meet top arc endpoint at y=3.5 */}
+                      <polyline points="9.5,3.5 10.5,5.5 11.5,3.5"
                         fill="none" stroke={m.color} strokeWidth={0.9}
                         strokeLinecap="round" strokeLinejoin="round" />
-                      {/* arrowhead at 9 o'clock — points up, 1px clear of arc ends */}
-                      <polyline points="1.5,6.5 2.5,4.5 3.5,6.5"
+                      {/* arrowhead at 9 o'clock — wings meet bottom arc endpoint at y=7.5 */}
+                      <polyline points="1.5,7.5 2.5,5.5 3.5,7.5"
                         fill="none" stroke={m.color} strokeWidth={0.9}
                         strokeLinecap="round" strokeLinejoin="round" />
                     </g>
