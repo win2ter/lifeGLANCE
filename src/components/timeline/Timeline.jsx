@@ -289,10 +289,12 @@ const Timeline = forwardRef(function Timeline(
           let cardY, connY1, connY2
           if (m.above) {
             cardY  = axisY - connLen - m.lane * CARD_STEP - cardH
+            cardY  = Math.max(84, cardY) // never overlap the today label (goes to ~y=68)
             connY1 = axisY - 4
             connY2 = cardY + cardH
           } else {
             cardY  = axisY + connLen + m.lane * CARD_STEP
+            cardY  = Math.min(h - cardH - 10, cardY) // never clip below SVG bounds
             connY1 = axisY + 4
             connY2 = cardY
           }
@@ -312,13 +314,10 @@ const Timeline = forwardRef(function Timeline(
 
           const cx = cardX + CARD_W / 2
           const cy = cardY + cardH / 2
-          const groupStyle = {
-            cursor: 'pointer',
-            ...(isHL && {
-              transform: `translate(${cx}px,${cy}px) scale(1.06) translate(${-cx}px,${-cy}px)`,
-              transition: 'transform 0.22s ease',
-            }),
-          }
+          const groupStyle = isHL ? {
+            transform: `translate(${cx}px,${cy}px) scale(1.06) translate(${-cx}px,${-cy}px)`,
+            transition: 'transform 0.22s ease',
+          } : {}
 
           // Fly-in for newly saved cards: scale from todayX so the card
           // appears to launch from today and travel to its date position.
@@ -335,20 +334,23 @@ const Timeline = forwardRef(function Timeline(
           }
 
           return (
-            <g key={m.id} onClick={() => onMilestoneClick(m)} style={groupStyle} opacity={alpha}>
+            <g key={m.id} onClick={() => onMilestoneClick(m)} opacity={alpha} style={{ cursor: 'pointer' }}>
+              {/* Dot and connector: not inside the scale group so they stay on the axis */}
+              <circle cx={x} cy={axisY}
+                r={isHL ? 5.5 : 3.5}
+                fill={m.color}
+                opacity={isHL ? 1 : 0.85} />
+              <line x1={x} y1={connY1} x2={x} y2={connY2}
+                stroke={m.color} strokeWidth={isHL ? 1.5 : 1} opacity={isHL ? 0.6 : 0.3} />
+
+              {/* Card content: scale on highlight, fly-in on first render */}
+              <g style={groupStyle}>
               <g
                 style={innerAnimStyle}
                 onAnimationEnd={isFlying
                   ? () => setFlyDoneIds(prev => new Set([...prev, m.id]))
                   : undefined}
               >
-              <circle cx={x} cy={axisY}
-                r={isHL ? 5.5 : 3.5}
-                fill={m.color}
-                opacity={isHL ? 1 : 0.85} />
-
-              <line x1={x} y1={connY1} x2={x} y2={connY2}
-                stroke={m.color} strokeWidth={isHL ? 1.5 : 1} opacity={isHL ? 0.6 : 0.3} />
 
               {isHL && (
                 <rect x={cardX - 4} y={cardY - 4}
@@ -425,6 +427,7 @@ const Timeline = forwardRef(function Timeline(
                     fill={m.color} />
                 </g>
               )}
+              </g>
               </g>
             </g>
           )
