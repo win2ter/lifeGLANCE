@@ -196,8 +196,10 @@ const Timeline = forwardRef(function Timeline(
       }}
       onTouchEnd={endDrag}
     >
-      <div style={{ position:'absolute', top:4, right:4, background:'rgba(0,0,0,0.75)', color:'#fff', fontSize:'10px', padding:'2px 5px', zIndex:9999, pointerEvents:'none', fontFamily:'monospace' }}>
-        {__BUILD_TIME__.slice(11,19)} svg:{w}×{h} ax:{axisY} win:{window.innerWidth}×{window.innerHeight}
+      <div style={{ position:'absolute', top:4, right:4, background:'rgba(0,0,0,0.75)', color:'#fff', fontSize:'10px', padding:'2px 5px', zIndex:9999, pointerEvents:'none', fontFamily:'monospace', lineHeight:1.6 }}>
+        <div>{__BUILD_TIME__.slice(11,19)} win:{window.innerWidth}×{window.innerHeight}</div>
+        <div>svg:{w}×{h} ax:{axisY}</div>
+        <div>uc:{ultraCompact?1:0} cl:{compactLayout?1:0} ts:{textSize}</div>
       </div>
       <svg
         width={w} height={h}
