@@ -1391,6 +1391,8 @@ button, input, select, textarea {
 
   /* Onboarding: switch to top-aligned, compress everything for landscape phones */
   .onboarding         { justify-content: flex-start; padding: 0.6rem 1.5rem 4rem; }
+  /* Step 1 has no preview strip — keep it vertically centred */
+  .onboarding-welcome { justify-content: center; padding: 1rem 1.5rem; }
   .onboarding-step    { gap: 0.65rem; }
   .onboarding-inputs  { gap: 0.5rem; }
   .onboarding-prompt  { font-size: 1rem; min-height: 2.2rem; }
