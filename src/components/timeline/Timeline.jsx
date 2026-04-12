@@ -336,16 +336,25 @@ const Timeline = forwardRef(function Timeline(
             animationDelay:   isFlying ? '0ms' : `${i * 28}ms`,
             transformOrigin:  isFlying ? `${todayX}px ${axisY}px` : `${x}px ${axisY}px`,
           }
+          // Stem fades in sync with the card but without scaling (it stays on the axis)
+          const stemAnimStyle = flew ? {} : {
+            animation:      isFlying
+              ? 'milestone-stem-appear 0.3s ease both'
+              : 'milestone-stem-appear 0.45s cubic-bezier(0.22,1,0.36,1) both',
+            animationDelay: isFlying ? '0.35s' : `${i * 28}ms`,
+          }
 
           return (
             <g key={m.id} onClick={() => onMilestoneClick(m)} opacity={alpha} style={{ cursor: 'pointer' }}>
               {/* Dot and connector: not inside the scale group so they stay on the axis */}
-              <circle cx={x} cy={axisY}
-                r={isHL ? 5.5 : 3.5}
-                fill={m.color}
-                opacity={isHL ? 1 : 0.85} />
-              <line x1={x} y1={connY1} x2={x} y2={connY2}
-                stroke={m.color} strokeWidth={isHL ? 1.5 : 1} opacity={isHL ? 0.6 : 0.3} />
+              <g style={stemAnimStyle}>
+                <circle cx={x} cy={axisY}
+                  r={isHL ? 5.5 : 3.5}
+                  fill={m.color}
+                  opacity={isHL ? 1 : 0.85} />
+                <line x1={x} y1={connY1} x2={x} y2={connY2}
+                  stroke={m.color} strokeWidth={isHL ? 1.5 : 1} opacity={isHL ? 0.6 : 0.3} />
+              </g>
 
               {/* Card content: scale on highlight, fly-in on first render */}
               <g style={groupStyle}>

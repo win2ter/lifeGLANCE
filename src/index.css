@@ -1208,6 +1208,10 @@ button, input, select, textarea {
   from { opacity: 0; transform: scale(0.25); }
   to   { opacity: 1; transform: scale(1); }
 }
+@keyframes milestone-stem-appear {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
 /* Used for newly-added cards: origin is set to todayX so the card
    appears to launch from today and fly to its date position.        */
 @keyframes milestone-fly {
