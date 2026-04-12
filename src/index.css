@@ -1420,21 +1420,9 @@ button, input, select, textarea {
 }
 
 /* ─── ICS Import Modal ──────────────────────────────────────────────────────── */
-.ics-sheet {
-  max-width: 640px;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;          /* table-wrap scrolls, not the sheet */
-  max-height: 88vh;
-  /* On mobile the sheet is bottom-anchored and grows to content, so max-height
-     alone gives flex children no concrete reference — fix with an explicit height. */
-  height: 88vh;
-}
-@media (min-width: 640px) {
-  /* On wider screens let it shrink to fit shorter lists */
-  .ics-sheet { height: auto; }
-}
+/* The base .sheet already provides overflow-y: auto + max-height: 88vh.
+   The actions bar is sticky so cancel/import stay visible while scrolling. */
+.ics-sheet { max-width: 640px; width: 100%; }
 
 .ics-notice {
   font-size: 0.72rem;
@@ -1460,11 +1448,9 @@ button, input, select, textarea {
 }
 
 .ics-table-wrap {
-  flex: 1;
-  min-height: 0;             /* allow flex child to shrink below content size */
-  overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: 6px;
+  overflow-x: auto;
 }
 
 .ics-table {
@@ -1534,10 +1520,14 @@ button, input, select, textarea {
 }
 
 .ics-actions {
+  position: sticky;
+  bottom: 0;
+  background: var(--bg-elevated);
   display: flex;
   justify-content: flex-end;
   gap: 0.6rem;
-  padding-top: 0.25rem;
+  padding-top: 0.5rem;
+  margin-top: -0.25rem;
 }
 
 /* ─── Help modal ───────────────────────────────────────────────────────────── */
