@@ -1427,6 +1427,13 @@ button, input, select, textarea {
   flex-direction: column;
   overflow: hidden;          /* table-wrap scrolls, not the sheet */
   max-height: 88vh;
+  /* On mobile the sheet is bottom-anchored and grows to content, so max-height
+     alone gives flex children no concrete reference — fix with an explicit height. */
+  height: 88vh;
+}
+@media (min-width: 640px) {
+  /* On wider screens let it shrink to fit shorter lists */
+  .ics-sheet { height: auto; }
 }
 
 .ics-notice {
@@ -1454,6 +1461,7 @@ button, input, select, textarea {
 
 .ics-table-wrap {
   flex: 1;
+  min-height: 0;             /* allow flex child to shrink below content size */
   overflow-y: auto;
   border: 1px solid var(--border);
   border-radius: 6px;
