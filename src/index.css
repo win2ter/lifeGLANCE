@@ -427,6 +427,27 @@ button, input, select, textarea {
 .view-tab:hover { color: var(--text-dim); background: rgba(200, 169, 110, 0.06); }
 .view-tab.active { color: var(--amber); background: rgba(200, 169, 110, 0.1); }
 
+.view-tabs-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.recur-filter-btn {
+  padding: 0.18rem 0.55rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 0.62rem;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.recur-filter-btn:hover { color: var(--text-dim); background: rgba(200, 169, 110, 0.06); }
+.recur-filter-btn.active { color: var(--amber); background: rgba(200, 169, 110, 0.1); border-color: rgba(200, 169, 110, 0.3); }
+
 .timeline-body {
   flex: 1;
   position: relative;
@@ -981,6 +1002,12 @@ button, input, select, textarea {
   color: var(--text-muted);
   letter-spacing: 0.04em;
 }
+.detail-recurrence-warn {
+  font-size: 0.72rem;
+  color: #E85D75;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
 
 .detail-delete-group {
   display: flex;
@@ -989,8 +1016,10 @@ button, input, select, textarea {
 }
 .detail-delete-series {
   font-size: 0.72rem;
-  opacity: 0.75;
+  color: #E85D75 !important;
+  opacity: 0.8;
 }
+.detail-delete-series:hover { opacity: 1; }
 
 /* ─── Add milestone sheet — recurrence ─────────────────────────────────────── */
 .recurrence-toggle-row {

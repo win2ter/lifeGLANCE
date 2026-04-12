@@ -26,6 +26,23 @@ const TEXT_SIZES = {
 
 const ZOOM_ANIM_MS = 380
 
+function applyRecurFilter(ms, mode) {
+  if (mode === 'all') return ms
+  const now    = new Date()
+  const nonRec = ms.filter(m => !m.recurrence_id)
+  const rec    = ms.filter(m =>  m.recurrence_id)
+  if (mode === 'past')   return [...nonRec, ...rec.filter(m => new Date(m.date) <  now)]
+  if (mode === 'future') return [...nonRec, ...rec.filter(m => new Date(m.date) >= now)]
+  // 'next': one instance per series — nearest upcoming, or most recent past if none upcoming
+  const byId = {}
+  for (const m of rec) { (byId[m.recurrence_id] ??= []).push(m) }
+  const picked = Object.values(byId).map(arr => {
+    const up = arr.filter(m => new Date(m.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date))
+    return up.length ? up[0] : arr.sort((a, b) => new Date(b.date) - new Date(a.date))[0]
+  })
+  return [...nonRec, ...picked]
+}
+
 export default function TimelineView({ milestones, setMilestones }) {
   const [zoom,          setZoom]          = useState('years')
   const [zoomAnim,      setZoomAnim]      = useState('')
@@ -51,6 +68,7 @@ export default function TimelineView({ milestones, setMilestones }) {
   const [helpOpen,      setHelpOpen]      = useState(false)
   const [searchOpen,    setSearchOpen]    = useState(false)
   const [viewMode,      setViewMode]      = useState('all')
+  const [recurFilter,   setRecurFilter]   = useState('all')
   const [categories,    setCategories]    = useState(loadCategories)
   const [panMs,         setPanMs]         = useState(0)
   const [compactHeader, setCompactHeader] = useState(
@@ -177,9 +195,13 @@ export default function TimelineView({ milestones, setMilestones }) {
   const presentCategories = categories.filter(cat =>
     milestones.some(m => m.category === cat.id)
   )
-  const filteredMilestones = filter === 'all'
-    ? milestones
-    : milestones.filter(m => m.category === filter)
+  const hasRecurring = milestones.some(m => m.recurrence_id)
+  const categoryFiltered = filter === 'all' ? milestones : milestones.filter(m => m.category === filter)
+  const filteredMilestones = applyRecurFilter(categoryFiltered, recurFilter)
+
+  function cycleRecurFilter() {
+    setRecurFilter(f => ({ all: 'past', past: 'next', next: 'future', future: 'all' }[f]))
+  }
 
   // ── "On this day" — milestones that share today's month (and day if precision allows) ──
   const onThisDayItems = React.useMemo(() => {
@@ -723,12 +745,21 @@ export default function TimelineView({ milestones, setMilestones }) {
                   </div>
                 )}
               </div>
-              <div className="view-tabs">
-                {[['past', 'past'], ['all', 'all'], ['future', 'future']].map(([mode, label]) => (
-                  <button key={mode}
-                    className={`view-tab ${viewMode === mode ? 'active' : ''}`}
-                    onClick={() => handleViewMode(mode)}>{label}</button>
-                ))}
+              <div className="view-tabs-row">
+                <div className="view-tabs">
+                  {[['past', 'past'], ['all', 'all'], ['future', 'future']].map(([mode, label]) => (
+                    <button key={mode}
+                      className={`view-tab ${viewMode === mode ? 'active' : ''}`}
+                      onClick={() => handleViewMode(mode)}>{label}</button>
+                  ))}
+                </div>
+                {hasRecurring && (
+                  <button
+                    className={`recur-filter-btn${recurFilter !== 'all' ? ' active' : ''}`}
+                    onClick={cycleRecurFilter}>
+                    recurring: {recurFilter}
+                  </button>
+                )}
               </div>
             </>
           ) : (
@@ -763,12 +794,21 @@ export default function TimelineView({ milestones, setMilestones }) {
                   )}
                 </div>
               </div>
-              <div className="view-tabs">
-                {[['past', '← past'], ['all', '← all →'], ['future', 'future →']].map(([mode, label]) => (
-                  <button key={mode}
-                    className={`view-tab ${viewMode === mode ? 'active' : ''}`}
-                    onClick={() => handleViewMode(mode)}>{label}</button>
-                ))}
+              <div className="view-tabs-row">
+                <div className="view-tabs">
+                  {[['past', '← past'], ['all', '← all →'], ['future', 'future →']].map(([mode, label]) => (
+                    <button key={mode}
+                      className={`view-tab ${viewMode === mode ? 'active' : ''}`}
+                      onClick={() => handleViewMode(mode)}>{label}</button>
+                  ))}
+                </div>
+                {hasRecurring && (
+                  <button
+                    className={`recur-filter-btn${recurFilter !== 'all' ? ' active' : ''}`}
+                    onClick={cycleRecurFilter}>
+                    recurring: {recurFilter}
+                  </button>
+                )}
               </div>
             </>
           )}

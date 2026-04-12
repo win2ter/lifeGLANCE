@@ -277,7 +277,7 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
         )}
         {isEdit && existing?.recurrence === 'annual' && (
           <div className="sheet-field">
-            <div className="detail-recurrence">↻ repeats annually — editing this instance only</div>
+            <div className="detail-recurrence-warn">↻ repeats annually — editing this instance only</div>
           </div>
         )}
 

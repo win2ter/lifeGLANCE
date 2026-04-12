@@ -61,6 +61,7 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
           <div className="detail-recurrence">↻ repeats annually</div>
         )}
 
+
         {/* Note */}
         {m.note && (
           <div className="detail-note">{m.note}</div>
