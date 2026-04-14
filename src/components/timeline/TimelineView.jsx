@@ -666,6 +666,20 @@ export default function TimelineView({ milestones, setMilestones }) {
         img.src = svgUrl
       })
 
+      // Draw lifeGLANCE branding watermark in bottom-left corner
+      const brandPad = 20
+      const brandY   = h - 18
+      ctx.save()
+      ctx.textBaseline = 'alphabetic'
+      ctx.font = `400 14px 'Courier Prime', 'Courier New', monospace`
+      const lifeW = ctx.measureText('life').width
+      ctx.fillStyle = '#E8E0D0'
+      ctx.fillText('life', brandPad, brandY)
+      ctx.font = `bold italic 15px 'Courier Prime', 'Courier New', monospace`
+      ctx.fillStyle = '#3D3580'
+      ctx.fillText('GLANCE', brandPad + lifeW, brandY)
+      ctx.restore()
+
       canvas.toBlob(blob => {
         const d = new Date()
         const stamp = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
