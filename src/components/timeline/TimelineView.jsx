@@ -624,18 +624,24 @@ export default function TimelineView({ milestones, setMilestones }) {
     try {
       const { width: w, height: h } = svgEl.getBoundingClientRect()
       const scale = 2
+      // The today marker's drop-shadow glow bleeds above y=0. Shift the viewBox
+      // up by topInset so that region is captured instead of clipped.
+      const topInset = 20
 
       // Clone SVG, fix rem font-size (canvas defaults 1rem→16px, not the app's value),
-      // and inject a dark background rect.
+      // expand height + viewBox to capture above-axis glow, and inject a dark bg rect.
       const clone = svgEl.cloneNode(true)
       clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
       clone.setAttribute('width', w)
-      clone.setAttribute('height', h)
+      clone.setAttribute('height', h + topInset)
+      clone.setAttribute('viewBox', `0 ${-topInset} ${w} ${h + topInset}`)
       clone.style.fontSize = getComputedStyle(svgEl).fontSize // e.g. "22px"
 
       const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect')
-      bg.setAttribute('width', '100%')
-      bg.setAttribute('height', '100%')
+      bg.setAttribute('x', '0')
+      bg.setAttribute('y', String(-topInset))
+      bg.setAttribute('width', String(w))
+      bg.setAttribute('height', String(h + topInset))
       bg.setAttribute('fill', '#0F1117')
       clone.insertBefore(bg, clone.firstChild)
 
@@ -671,7 +677,7 @@ export default function TimelineView({ milestones, setMilestones }) {
 
       const canvas = document.createElement('canvas')
       canvas.width  = Math.round(w * scale)
-      canvas.height = Math.round(h * scale)
+      canvas.height = Math.round((h + topInset) * scale)
       const ctx = canvas.getContext('2d')
       ctx.scale(scale, scale)
 
@@ -684,14 +690,14 @@ export default function TimelineView({ milestones, setMilestones }) {
 
       // Draw lifeGLANCE branding watermark in bottom-left corner
       const brandPad = 20
-      const brandY   = h - 18
+      const brandY   = h + topInset - 24
       ctx.save()
       ctx.textBaseline = 'alphabetic'
-      ctx.font = `400 14px 'Courier Prime', 'Courier New', monospace`
+      ctx.font = `400 70px 'Courier Prime', 'Courier New', monospace`
       const lifeW = ctx.measureText('life').width
       ctx.fillStyle = '#E8E0D0'
       ctx.fillText('life', brandPad, brandY)
-      ctx.font = `bold italic 15px 'Courier Prime', 'Courier New', monospace`
+      ctx.font = `bold italic 75px 'Courier Prime', 'Courier New', monospace`
       ctx.fillStyle = '#3D3580'
       ctx.fillText('GLANCE', brandPad + lifeW, brandY)
       ctx.restore()
