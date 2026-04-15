@@ -20,11 +20,20 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
   const [category,   setCategory]   = useState(existing?.category  ?? 'personal')
   const [note,       setNote]       = useState(existing?.note       ?? '')
   const [url,        setUrl]        = useState(existing?.url        ?? '')
-  const [photoUri,   setPhotoUri]   = useState(existing?.photo_uri  ?? '')
-  const [recurrence, setRecurrence] = useState(false)
-  const [recEndYear, setRecEndYear] = useState('')
-  const [busy,       setBusy]       = useState(false)
+  const [photoUri,      setPhotoUri]      = useState(existing?.photo_uri ?? '')
+  const [mediaFile,     setMediaFile]     = useState(null)   // new File selected this session
+  const [mediaRemoved,  setMediaRemoved]  = useState(false)  // user cleared existing media
+  const [mediaObjectUrl, setMediaObjectUrl] = useState(null) // transient preview URL
+  const [recurrence,    setRecurrence]    = useState(false)
+  const [recEndYear,    setRecEndYear]    = useState('')
+  const [busy,          setBusy]          = useState(false)
   const photoRef = useRef(null)
+  const mediaRef = useRef(null)
+
+  // Revoke preview URL when it changes or the form unmounts
+  React.useEffect(() => {
+    return () => { if (mediaObjectUrl) URL.revokeObjectURL(mediaObjectUrl) }
+  }, [mediaObjectUrl])
 
   // Pre-fill date from existing
   React.useEffect(() => {
@@ -66,6 +75,8 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
         color: selectedCat?.color,
         note: note.trim(),
         photo_uri: photoUri,
+        mediaFile,
+        mediaRemoved,
         url: url.trim(),
         recurrence: (!isEdit && recurrence) ? 'annual' : (existing?.recurrence ?? null),
         recurrence_id: existing?.recurrence_id ?? null,
@@ -236,6 +247,60 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
               const reader = new FileReader()
               reader.onload = () => setPhotoUri(reader.result)
               reader.readAsDataURL(file)
+            }}
+          />
+        </div>
+
+        {/* Media (audio / video) */}
+        <div className="sheet-field">
+          <label className="field-label">audio / video (optional)</label>
+          {mediaFile && mediaObjectUrl ? (
+            // New file selected this session — show inline preview
+            <div className="media-preview-wrap">
+              {mediaFile.type.startsWith('video/')
+                ? <video controls src={mediaObjectUrl} className="media-preview" />
+                : <audio controls src={mediaObjectUrl} className="media-preview" />}
+              <button type="button" className="btn-ghost" style={{ alignSelf: 'flex-start', fontSize: '0.72rem' }}
+                onClick={() => {
+                  setMediaFile(null)
+                  setMediaRemoved(true)
+                  setMediaObjectUrl(null)
+                  if (mediaRef.current) mediaRef.current.value = ''
+                }}>
+                remove
+              </button>
+            </div>
+          ) : existing?.media_type && !mediaRemoved ? (
+            // Existing media — show indicator with replace/remove
+            <div className="audio-attached-row">
+              <span className="audio-attached-label">
+                {existing.media_type === 'video' ? '▶ video attached' : '♪ audio attached'}
+              </span>
+              <button type="button" className="btn-ghost" style={{ fontSize: '0.72rem' }}
+                onClick={() => mediaRef.current?.click()}>
+                replace
+              </button>
+              <button type="button" className="btn-ghost" style={{ fontSize: '0.72rem' }}
+                onClick={() => { setMediaRemoved(true); setMediaFile(null) }}>
+                remove
+              </button>
+            </div>
+          ) : (
+            <button type="button" className="btn"
+              style={{ fontSize: '0.75rem', padding: '0.4rem 0.85rem', alignSelf: 'flex-start' }}
+              onClick={() => mediaRef.current?.click()}>
+              attach audio / video
+            </button>
+          )}
+          <input
+            ref={mediaRef} type="file" accept="audio/*,video/*"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const file = e.target.files[0]
+              if (!file) return
+              setMediaFile(file)
+              setMediaRemoved(false)
+              setMediaObjectUrl(URL.createObjectURL(file))
             }}
           />
         </div>

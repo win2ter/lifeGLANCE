@@ -1,7 +1,20 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { formatDateDisplay, relativeLabel, ageAtDate } from '../../utils/dates'
+import { dbGetMedia } from '../../data/db'
 
 export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelete, onDeleteSeries, birthday }) {
+  const [audioUrl, setAudioUrl] = useState(null)
+
+  useEffect(() => {
+    if (!m.media_type) return
+    let objectUrl
+    dbGetMedia(m.id).then(result => {
+      if (!result) return
+      objectUrl = URL.createObjectURL(result.blob)
+      setAudioUrl(objectUrl)
+    })
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl) }
+  }, [m.id, m.media_type])
   function handleDelete() {
     if (window.confirm(`Delete "${m.title}"?`)) {
       onDelete(m.id)
@@ -61,6 +74,15 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
           <div className="detail-recurrence">↻ repeats annually</div>
         )}
 
+
+        {/* Media (audio / video) */}
+        {audioUrl && (
+          <div className="detail-audio-wrap">
+            {m.media_type === 'video'
+              ? <video controls src={audioUrl} className="detail-video" />
+              : <audio controls src={audioUrl} className="detail-audio" />}
+          </div>
+        )}
 
         {/* Note */}
         {m.note && (

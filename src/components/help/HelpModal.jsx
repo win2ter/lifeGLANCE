@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 
-const VERSION = '0.1.0'
+const VERSION = '0.9.0'
 
 const SHORTCUTS = [
   { keys: ['←', '→'],        desc: 'cycle past / future milestones'   },
@@ -22,23 +22,41 @@ const SHORTCUTS = [
   { keys: ['Esc'],            desc: 'close modal / exit input'          },
 ]
 
-function useStorageEstimate() {
+function fmtBytes(n) {
+  if (n == null) return '—'
+  if (n < 1024)        return `${n} B`
+  if (n < 1024 ** 2)   return `${(n / 1024).toFixed(1)} KB`
+  if (n < 1024 ** 3)   return `${(n / 1024 ** 2).toFixed(1)} MB`
+  return `${(n / 1024 ** 3).toFixed(2)} GB`
+}
+
+// localStorage — synchronous, just settings/prefs (a few KB)
+function useLocalStorageSize() {
   return useMemo(() => {
     try {
       const bytes = Object.keys(localStorage).reduce(
         (sum, k) => sum + (localStorage.getItem(k)?.length ?? 0) * 2, 0
       )
-      if (bytes < 1024)       return `${bytes} B`
-      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
-    } catch {
-      return '—'
-    }
+      return fmtBytes(bytes)
+    } catch { return '—' }
   }, [])
 }
 
+// IndexedDB — async via Storage API; where milestones + media blobs live
+function useIndexedDBEstimate() {
+  const [est, setEst] = useState(null)
+  useEffect(() => {
+    if (!navigator.storage?.estimate) return
+    navigator.storage.estimate()
+      .then(({ usage, quota }) => setEst({ usage, quota }))
+      .catch(() => {})
+  }, [])
+  return est
+}
+
 export default function HelpModal({ onClose }) {
-  const storage = useStorageEstimate()
+  const localSize = useLocalStorageSize()
+  const idbEst    = useIndexedDBEstimate()
 
   return (
     <div className="sheet-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -69,8 +87,26 @@ export default function HelpModal({ onClose }) {
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}
         <div className="help-footer">
-          <span className="help-footer-meta">local storage: {storage}</span>
-          <span className="help-footer-meta">v{VERSION}</span>
+          <div className="help-footer-storage">
+            <span className="help-footer-meta">
+              indexedDB&ensp;
+              <span className="help-footer-value">
+                {idbEst ? `${fmtBytes(idbEst.usage)} used` : '…'}
+              </span>
+              {idbEst && (
+                <>
+                  <span className="help-footer-dim"> / </span>
+                  <span className="help-footer-value">{fmtBytes(idbEst.quota)} available</span>
+                </>
+              )}
+            </span>
+            <span className="help-footer-meta">
+              localStorage&ensp;
+              <span className="help-footer-value">{localSize}</span>
+              <span className="help-footer-dim"> (settings only)</span>
+            </span>
+          </div>
+          <span className="help-footer-meta help-footer-version">v{VERSION}</span>
         </div>
 
       </div>

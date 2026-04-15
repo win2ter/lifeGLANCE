@@ -14,6 +14,7 @@ import TypewriterText    from '../ui/TypewriterText'
 import { ZOOM_LEVELS }   from '../../utils/timeline'
 import { loadCategories } from '../../utils/colors'
 import { addMilestone, updateMilestone, deleteMilestone, restoreMilestones } from '../../data/milestones'
+import { dbPutMedia } from '../../data/db'
 import { parseIcs }      from '../../utils/icsParser'
 import * as audio from '../../utils/audio'
 
@@ -538,19 +539,31 @@ export default function TimelineView({ milestones, setMilestones }) {
   // ── CRUD ─────────────────────────────────────────────────────────────────────
   async function handleSave(data, existing) {
     audio.init()   // ensure AudioContext is running (form submit = user gesture)
+
+    // mediaFile / mediaRemoved are transfer-only fields from the form — strip them
+    // before passing to the data layer, and handle blob persistence here.
+    const { mediaFile, mediaRemoved, ...milestoneData } = data
+    const newMediaType = mediaFile
+      ? (mediaFile.type.startsWith('video/') ? 'video' : 'audio')
+      : null
+
     if (existing) {
-      const updated = await updateMilestone(existing.id, data, existing)
+      const mediaType = mediaFile    ? newMediaType
+                      : mediaRemoved ? null
+                      : (existing.media_type ?? null)
+      const updated = await updateMilestone(existing.id, { ...milestoneData, media_type: mediaType }, existing)
+      if (mediaFile) await dbPutMedia(updated.id, mediaFile, mediaFile.type)
       const newMs = milestones.map(m => m.id === existing.id ? updated : m)
       pushHistory(newMs)
       setMilestones(newMs)
       audio.playEditSave()
-    } else if (data.recurrence === 'annual') {
+    } else if (milestoneData.recurrence === 'annual') {
       // Generate one instance per year from base year to chosen end year (max +99)
       const rid       = crypto.randomUUID()
-      const baseDate  = new Date(data.date)
+      const baseDate  = new Date(milestoneData.date)
       const baseYear  = baseDate.getFullYear()
       const endYear   = Math.max(baseYear, Math.min(
-        data.recurrenceEndYear ?? Math.max(baseYear, new Date().getFullYear()) + 3,
+        milestoneData.recurrenceEndYear ?? Math.max(baseYear, new Date().getFullYear()) + 3,
         baseYear + 99
       ))
       const created   = []
@@ -558,14 +571,16 @@ export default function TimelineView({ milestones, setMilestones }) {
         const d = new Date(baseDate)
         d.setFullYear(y)
         const m = await addMilestone({
-          ...data,
+          ...milestoneData,
           date:          d,
           recurrence_id: rid,
-          // only the base-year instance keeps the original note / photo / url
-          note:      y === baseYear ? data.note      : '',
-          photo_uri: y === baseYear ? data.photo_uri : '',
-          url:       y === baseYear ? data.url       : '',
+          // only the base-year instance keeps the original note / photo / media / url
+          note:       y === baseYear ? milestoneData.note      : '',
+          photo_uri:  y === baseYear ? milestoneData.photo_uri : '',
+          media_type: y === baseYear ? newMediaType            : null,
+          url:        y === baseYear ? milestoneData.url       : '',
         })
+        if (y === baseYear && mediaFile) await dbPutMedia(m.id, mediaFile, mediaFile.type)
         created.push(m)
       }
       const newMs = [...milestones, ...created]
@@ -574,7 +589,8 @@ export default function TimelineView({ milestones, setMilestones }) {
       setNewlyAddedId(created[0].id)
       audio.playChime()
     } else {
-      const m = await addMilestone(data)
+      const m = await addMilestone({ ...milestoneData, media_type: newMediaType })
+      if (mediaFile) await dbPutMedia(m.id, mediaFile, mediaFile.type)
       const newMs = [...milestones, m]
       pushHistory(newMs)
       setMilestones(newMs)
@@ -665,6 +681,20 @@ export default function TimelineView({ milestones, setMilestones }) {
         img.onerror = reject
         img.src = svgUrl
       })
+
+      // Draw lifeGLANCE branding watermark in bottom-left corner
+      const brandPad = 20
+      const brandY   = h - 18
+      ctx.save()
+      ctx.textBaseline = 'alphabetic'
+      ctx.font = `400 14px 'Courier Prime', 'Courier New', monospace`
+      const lifeW = ctx.measureText('life').width
+      ctx.fillStyle = '#E8E0D0'
+      ctx.fillText('life', brandPad, brandY)
+      ctx.font = `bold italic 15px 'Courier Prime', 'Courier New', monospace`
+      ctx.fillStyle = '#3D3580'
+      ctx.fillText('GLANCE', brandPad + lifeW, brandY)
+      ctx.restore()
 
       canvas.toBlob(blob => {
         const d = new Date()

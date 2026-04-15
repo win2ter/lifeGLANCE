@@ -4,6 +4,7 @@ import React, {
 } from 'react'
 import { dateToX, getTimeRangeForView, getTickMarks, assignLanes, getMsPerPx } from '../../utils/timeline'
 import { relativeLabel, formatDateDisplay, ageAtDate } from '../../utils/dates'
+import { dbGetMedia } from '../../data/db'
 
 // Map text-size labels → root px value (must match TimelineView TEXT_SIZES)
 const REM_PX = { small: 19, normal: 22, big: 26, bigger: 30 }
@@ -58,6 +59,8 @@ const Timeline = forwardRef(function Timeline(
     () => window.matchMedia('(max-height: 900px)').matches
   )
   const [photoTip,    setPhotoTip]    = useState(null) // { uri, x, y }
+  const [playingId,   setPlayingId]   = useState(null)
+  const audioElRef = useRef(null)
   // Track which IDs have already played their fly-in so we don't re-animate on re-renders
   const [flyDoneIds,  setFlyDoneIds]  = useState(() => new Set())
   // panMsRef always tracks the latest value for animation calculations
@@ -104,6 +107,42 @@ const Timeline = forwardRef(function Timeline(
     resetPan: () => smoothPanTo(0),
     panToMs:  (targetMs) => smoothPanTo(targetMs - Date.now()),
   }), [smoothPanTo])
+
+  // Audio playback — stop and revoke object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (audioElRef.current) {
+        audioElRef.current.pause()
+        if (audioElRef.current._objectUrl) URL.revokeObjectURL(audioElRef.current._objectUrl)
+        audioElRef.current = null
+      }
+    }
+  }, [])
+
+  function handleAudioClick(m) {
+    // Stop whatever is currently playing
+    if (audioElRef.current) {
+      audioElRef.current.pause()
+      if (audioElRef.current._objectUrl) URL.revokeObjectURL(audioElRef.current._objectUrl)
+      audioElRef.current = null
+      if (playingId === m.id) { setPlayingId(null); return }
+    }
+    // Fetch blob lazily and play via a transient object URL
+    dbGetMedia(m.id).then(result => {
+      if (!result) return
+      const url = URL.createObjectURL(result.blob)
+      const a = new Audio(url)
+      a._objectUrl = url
+      audioElRef.current = a
+      setPlayingId(m.id)
+      a.play().catch(() => {})
+      a.onended = () => {
+        URL.revokeObjectURL(url)
+        audioElRef.current = null
+        setPlayingId(null)
+      }
+    })
+  }
 
   // Measure container
   useEffect(() => {
@@ -414,10 +453,12 @@ const Timeline = forwardRef(function Timeline(
                 ) : null
               })()}
 
-              {/* Card icons — top-right corner: camera, link, recurrence (right → left) */}
+              {/* Card icons — top-right corner: camera, audio, link, recurrence (right → left) */}
               {(() => {
                 const icons = []
                 if (m.photo_uri)  icons.push('camera')
+                if (m.media_type === 'audio') icons.push('audio')
+                if (m.media_type === 'video') icons.push('video')
                 if (m.url)        icons.push('link')
                 if (m.recurrence) icons.push('recurrence')
                 return icons.map((type, i) => {
@@ -439,6 +480,43 @@ const Timeline = forwardRef(function Timeline(
                       <circle cx={7} cy={6.5} r={1.25}
                         fill={m.color} opacity={0.55} />
                       <circle cx={11.8} cy={4} r={0.75} fill={m.color} />
+                    </g>
+                  )
+                  if (type === 'audio') {
+                    const isPlaying = playingId === m.id
+                    return (
+                      <g key="audio" transform={`translate(${ix},${iy})`}
+                         opacity={isPlaying ? 1 : op} style={{ cursor: 'pointer' }}
+                         onClick={e => { e.stopPropagation(); handleAudioClick(m) }}>
+                        <rect x={-2} y={-1} width={18} height={13} fill="transparent" />
+                        {/* Speaker body */}
+                        <rect x={0.5} y={3.5} width={3.5} height={4} rx={0.4}
+                          fill={isPlaying ? m.color : 'none'} stroke={m.color} strokeWidth={0.85} />
+                        {/* Cone */}
+                        <path d="M4,2 L7.5,0.5 L7.5,10.5 L4,9 Z"
+                          fill={isPlaying ? m.color : 'none'} stroke={m.color} strokeWidth={0.85} strokeLinejoin="round" />
+                        {/* Sound waves */}
+                        <path d="M9,4 Q10.5,5.5 9,7"
+                          fill="none" stroke={m.color} strokeWidth={0.85} strokeLinecap="round" />
+                        <path d="M10.5,2.5 Q13,5.5 10.5,8.5"
+                          fill="none" stroke={m.color} strokeWidth={0.85} strokeLinecap="round" />
+                      </g>
+                    )
+                  }
+                  if (type === 'video') return (
+                    <g key="video" transform={`translate(${ix},${iy})`}
+                       opacity={op} style={{ cursor: 'pointer' }}
+                       onClick={e => { e.stopPropagation(); onMilestoneClick(m) }}>
+                      <rect x={-2} y={-1} width={18} height={13} fill="transparent" />
+                      {/* Video camera body */}
+                      <rect x={0} y={2.5} width={8.5} height={6} rx={1.2}
+                        fill="none" stroke={m.color} strokeWidth={0.85} />
+                      {/* Viewfinder lens hint */}
+                      <circle cx={4.25} cy={5.5} r={1.8}
+                        fill="none" stroke={m.color} strokeWidth={0.75} />
+                      {/* Camera triangle (recording head) */}
+                      <path d="M8.5,4 L13,2.5 L13,8.5 L8.5,7 Z"
+                        fill="none" stroke={m.color} strokeWidth={0.85} strokeLinejoin="round" />
                     </g>
                   )
                   if (type === 'link') return (
