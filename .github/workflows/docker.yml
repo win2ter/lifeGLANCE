@@ -1,11 +1,8 @@
 name: Build & Push to GHCR
 
 on:
-  push:
-    branches:
-      - main
-    tags:
-      - "v*"
+  release:
+    types: [published]
 
 jobs:
   build-push:
@@ -36,10 +33,9 @@ jobs:
         with:
           images: ghcr.io/krelltunez/lifeglance
           tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=latest
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-
 
       - name: Build and push
         uses: docker/build-push-action@v6
