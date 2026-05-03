@@ -15,6 +15,7 @@ import { ZOOM_LEVELS, applyRecurFilter } from '../../utils/timeline'
 import { expandAnnualDates } from '../../utils/recurrence'
 import { loadCategories } from '../../utils/colors'
 import { addMilestone, updateMilestone, deleteMilestone, restoreMilestones, uid } from '../../data/milestones'
+import { listEras, restoreEras } from '../../data/eras'
 import { dbPutMedia, dbPutPhoto, dbDeletePhoto, dbGetPhoto, dbPut } from '../../data/db'
 import { parseIcs }      from '../../utils/icsParser'
 import * as audio from '../../utils/audio'
@@ -783,7 +784,8 @@ export default function TimelineView({ milestones, setMilestones }) {
       } catch { /* skip unreadable photo */ }
     }
 
-    const payload = { milestones, photos }
+    const eras = await listEras()
+    const payload = { milestones, photos, eras }
     const json = JSON.stringify(payload, null, 2)
     const blob = new Blob([json], { type: 'application/json' })
     const url  = URL.createObjectURL(blob)
@@ -841,11 +843,13 @@ export default function TimelineView({ milestones, setMilestones }) {
       const text   = await file.text()
       const parsed = JSON.parse(text)
 
-      // Support both legacy format (array) and new format ({ milestones, photos })
+      // Support both legacy format (array) and new format ({ milestones, photos, eras })
       const items  = Array.isArray(parsed) ? parsed : (parsed.milestones ?? parsed)
       const photos = (!Array.isArray(parsed) && parsed.photos) ? parsed.photos : {}
+      const eras   = (!Array.isArray(parsed) && Array.isArray(parsed.eras)) ? parsed.eras : []
 
       const restored = await restoreMilestones(items)
+      await restoreEras(eras)
 
       // Re-import photo blobs into the media store
       for (const m of restored) {

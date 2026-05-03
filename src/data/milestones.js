@@ -24,6 +24,7 @@ export function buildMilestone({
   url            = '',
   recurrence     = null,   // null | 'annual'
   recurrence_id  = null,   // UUID shared across instances of a series
+  mainTimelineVisibility = 'inherit',
 }) {
   const dateObj = date instanceof Date ? date : new Date(date)
   const today   = new Date()
@@ -43,6 +44,7 @@ export function buildMilestone({
     url,
     recurrence,
     recurrence_id,
+    mainTimelineVisibility,
     created_at:     now,
     updated_at:     now,
   }
@@ -94,6 +96,7 @@ export async function restoreMilestones(items) {
   for (const m of existing) await dbDelete(m.id)
   await dbClearAllMedia()
   const clean = items.map(({ photo_uri: _discard, ...m }) => ({
+    mainTimelineVisibility: 'inherit',   // default for backups that predate v4
     ...m,
     media_type: null,
     has_photo:  false,

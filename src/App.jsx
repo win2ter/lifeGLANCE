@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import Onboarding   from './components/onboarding/Onboarding'
 import TimelineView from './components/timeline/TimelineView'
 import { initDB, dbGetAll } from './data/db'
+import { registerDevtools } from './data/devtools'
 
 export default function App() {
   const [screen,      setScreen]      = useState('loading')  // loading | onboarding | timeline
@@ -19,7 +20,7 @@ export default function App() {
 
   useEffect(() => {
     initDB()
-      .then(() => { navigator.storage?.persist?.(); return dbGetAll() })
+      .then(() => { registerDevtools(); navigator.storage?.persist?.(); return dbGetAll() })
       .then((all) => {
         setMilestones(all)
         setScreen(all.length === 0 ? 'onboarding' : 'timeline')

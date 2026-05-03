@@ -1,6 +1,7 @@
 const DB_NAME    = 'lifeglance'
-const DB_VERSION = 3          // v3: photos migrated from data-URI to media blob store
+const DB_VERSION = 4          // v4: eras store + mainTimelineVisibility on milestones
 const STORE      = 'milestones'
+const ERAS       = 'eras'
 const MEDIA      = 'media'
 
 let _db = null
@@ -67,6 +68,28 @@ export function initDB() {
           c.continue()
         }
       }
+
+      // v4 — eras store + mainTimelineVisibility field on milestones
+      if (e.oldVersion < 4) {
+        if (!db.objectStoreNames.contains(ERAS)) {
+          db.createObjectStore(ERAS, { keyPath: 'id' })
+        }
+
+        const s = e.target.transaction.objectStore(STORE)
+        let migratedCount = 0
+        s.openCursor().onsuccess = ev => {
+          const c = ev.target.result
+          if (!c) {
+            console.log(`[lifeGLANCE v4 migration] mainTimelineVisibility added to ${migratedCount} milestone(s)`)
+            return
+          }
+          if (!('mainTimelineVisibility' in c.value)) {
+            c.update({ ...c.value, mainTimelineVisibility: 'inherit' })
+            migratedCount++
+          }
+          c.continue()
+        }
+      }
     }
 
     req.onsuccess = (e) => { _db = e.target.result; resolve(_db) }
@@ -80,6 +103,10 @@ function tx(mode = 'readonly') {
 
 function mediaTx(mode = 'readonly') {
   return _db.transaction(MEDIA, mode).objectStore(MEDIA)
+}
+
+function eraTx(mode = 'readonly') {
+  return _db.transaction(ERAS, mode).objectStore(ERAS)
 }
 
 // ── Milestones ───────────────────────────────────────────────────────────────
@@ -171,6 +198,48 @@ export function dbGetPhoto(id) {
 export function dbDeletePhoto(id) {
   return new Promise((resolve, reject) => {
     const req = mediaTx('readwrite').delete(`${id}-photo`)
+    req.onsuccess = () => resolve()
+    req.onerror   = () => reject(req.error)
+  })
+}
+
+// ── Eras ─────────────────────────────────────────────────────────────────────
+
+export function dbGetAllEras() {
+  return new Promise((resolve, reject) => {
+    const req = eraTx().getAll()
+    req.onsuccess = () => resolve(req.result)
+    req.onerror   = () => reject(req.error)
+  })
+}
+
+export function dbGetEra(id) {
+  return new Promise((resolve, reject) => {
+    const req = eraTx().get(id)
+    req.onsuccess = () => resolve(req.result ?? null)
+    req.onerror   = () => reject(req.error)
+  })
+}
+
+export function dbAddEra(item) {
+  return new Promise((resolve, reject) => {
+    const req = eraTx('readwrite').add(item)
+    req.onsuccess = () => resolve(item)
+    req.onerror   = () => reject(req.error)
+  })
+}
+
+export function dbPutEra(item) {
+  return new Promise((resolve, reject) => {
+    const req = eraTx('readwrite').put(item)
+    req.onsuccess = () => resolve(item)
+    req.onerror   = () => reject(req.error)
+  })
+}
+
+export function dbDeleteEra(id) {
+  return new Promise((resolve, reject) => {
+    const req = eraTx('readwrite').delete(id)
     req.onsuccess = () => resolve()
     req.onerror   = () => reject(req.error)
   })
