@@ -1,5 +1,5 @@
 const DB_NAME    = 'lifeglance'
-const DB_VERSION = 2          // v2: adds media object store
+const DB_VERSION = 3          // v3: photos migrated from data-URI to media blob store
 const STORE      = 'milestones'
 const MEDIA      = 'media'
 
@@ -32,6 +32,37 @@ export function initDB() {
             const rec = { ...c.value }
             delete rec.audio_uri
             c.update(rec)
+          }
+          c.continue()
+        }
+      }
+
+      // v3 — migrate photo_uri base64 strings into the media blob store
+      if (e.oldVersion < 3) {
+        const mediaStore = e.target.transaction.objectStore(MEDIA)
+        const s = e.target.transaction.objectStore(STORE)
+        s.openCursor().onsuccess = ev => {
+          const c = ev.target.result
+          if (!c) return
+          const rec = c.value
+          if (rec.photo_uri && rec.photo_uri.startsWith('data:')) {
+            try {
+              const [header, b64] = rec.photo_uri.split(',')
+              const mimeType = header.match(/:(.*?);/)[1]
+              const raw      = atob(b64)
+              const arr      = new Uint8Array(raw.length)
+              for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i)
+              const blob = new Blob([arr], { type: mimeType })
+              mediaStore.put({ id: `${rec.id}-photo`, blob, mimeType })
+            } catch { /* malformed data-URI — skip */ }
+            const updated = { ...rec }
+            delete updated.photo_uri
+            updated.has_photo = true
+            c.update(updated)
+          } else if ('photo_uri' in rec) {
+            const updated = { ...rec }
+            delete updated.photo_uri
+            c.update(updated)
           }
           c.continue()
         }
@@ -85,7 +116,7 @@ export function dbDelete(id) {
   })
 }
 
-// ── Media (audio blobs) ──────────────────────────────────────────────────────
+// ── Media (audio / video blobs) ──────────────────────────────────────────────
 
 export function dbPutMedia(id, blob, mimeType) {
   return new Promise((resolve, reject) => {
@@ -111,6 +142,35 @@ export function dbGetMedia(id) {
 export function dbClearAllMedia() {
   return new Promise((resolve, reject) => {
     const req = mediaTx('readwrite').clear()
+    req.onsuccess = () => resolve()
+    req.onerror   = () => reject(req.error)
+  })
+}
+
+// ── Photos (keyed as `${id}-photo` in the media store) ──────────────────────
+
+export function dbPutPhoto(id, blob, mimeType) {
+  return new Promise((resolve, reject) => {
+    const req = mediaTx('readwrite').put({ id: `${id}-photo`, blob, mimeType })
+    req.onsuccess = () => resolve()
+    req.onerror   = () => reject(req.error)
+  })
+}
+
+export function dbGetPhoto(id) {
+  return new Promise((resolve, reject) => {
+    const req = mediaTx().get(`${id}-photo`)
+    req.onsuccess = () => {
+      const rec = req.result
+      resolve(rec ? { blob: rec.blob, mimeType: rec.mimeType } : null)
+    }
+    req.onerror   = () => reject(req.error)
+  })
+}
+
+export function dbDeletePhoto(id) {
+  return new Promise((resolve, reject) => {
+    const req = mediaTx('readwrite').delete(`${id}-photo`)
     req.onsuccess = () => resolve()
     req.onerror   = () => reject(req.error)
   })

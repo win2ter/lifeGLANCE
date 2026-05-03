@@ -116,6 +116,28 @@ function seededHash(str) {
   return (h >>> 0) / 4294967295
 }
 
+// Filter recurring milestones according to the selected recurrence display mode.
+//   all    — show everything
+//   past   — non-recurring + recurring instances that are in the past
+//   future — non-recurring + recurring instances that are in the future
+//   next   — non-recurring + one instance per series (nearest upcoming, or most recent past)
+export function applyRecurFilter(ms, mode) {
+  if (mode === 'all') return ms
+  const now    = new Date()
+  const nonRec = ms.filter(m => !m.recurrence_id)
+  const rec    = ms.filter(m =>  m.recurrence_id)
+  if (mode === 'past')   return [...nonRec, ...rec.filter(m => new Date(m.date) <  now)]
+  if (mode === 'future') return [...nonRec, ...rec.filter(m => new Date(m.date) >= now)]
+  // 'next': one instance per series
+  const byId = {}
+  for (const m of rec) { (byId[m.recurrence_id] ??= []).push(m) }
+  const picked = Object.values(byId).map(arr => {
+    const up = arr.filter(m => new Date(m.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date))
+    return up.length ? up[0] : arr.sort((a, b) => new Date(b.date) - new Date(a.date))[0]
+  })
+  return [...nonRec, ...picked]
+}
+
 // Assign above/below lanes to sorted milestones.
 //   maxLane      – max lane index that fits in the container (caller computes)
 //   cardTimeSpan – ms equivalent of one card width at current zoom (for overlap detection)

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { formatDateDisplay, relativeLabel, ageAtDate } from '../../utils/dates'
-import { dbGetMedia } from '../../data/db'
+import { dbGetMedia, dbGetPhoto } from '../../data/db'
 
 export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelete, onDeleteSeries, birthday }) {
-  const [audioUrl, setAudioUrl] = useState(null)
-  const [confirm,  setConfirm]  = useState(null) // null | 'single' | 'series'
+  const [audioUrl,  setAudioUrl]  = useState(null)
+  const [photoUrl,  setPhotoUrl]  = useState(null)
+  const [confirm,   setConfirm]   = useState(null) // null | 'single' | 'series'
 
   useEffect(() => {
     if (!m.media_type) return
@@ -16,6 +17,17 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
     })
     return () => { if (objectUrl) URL.revokeObjectURL(objectUrl) }
   }, [m.id, m.media_type])
+
+  useEffect(() => {
+    if (!m.has_photo) return
+    let objectUrl
+    dbGetPhoto(m.id).then(result => {
+      if (!result) return
+      objectUrl = URL.createObjectURL(result.blob)
+      setPhotoUrl(objectUrl)
+    })
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl) }
+  }, [m.id, m.has_photo])
 
   function doDelete()       { onDelete(m.id); onClose() }
   function doDeleteSeries() { onDeleteSeries(m.recurrence_id); onClose() }
@@ -29,9 +41,9 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
         </div>
 
         {/* Photo */}
-        {m.photo_uri && (
+        {photoUrl && (
           <div className="detail-photo-wrap">
-            <img src={m.photo_uri} alt={m.title} className="detail-photo" />
+            <img src={photoUrl} alt={m.title} className="detail-photo" />
           </div>
         )}
 
@@ -64,7 +76,6 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
         {m.recurrence === 'annual' && (
           <div className="detail-recurrence">↻ repeats annually</div>
         )}
-
 
         {/* Media (audio / video) */}
         {audioUrl && (

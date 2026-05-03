@@ -11,10 +11,11 @@ import OnThisDayModal    from './OnThisDayModal'
 import IcsImportModal    from '../import/IcsImportModal'
 import MinimapBar        from '../minimap/MinimapBar'
 import TypewriterText    from '../ui/TypewriterText'
-import { ZOOM_LEVELS }   from '../../utils/timeline'
+import { ZOOM_LEVELS, applyRecurFilter } from '../../utils/timeline'
+import { expandAnnualDates } from '../../utils/recurrence'
 import { loadCategories } from '../../utils/colors'
 import { addMilestone, updateMilestone, deleteMilestone, restoreMilestones, uid } from '../../data/milestones'
-import { dbPutMedia } from '../../data/db'
+import { dbPutMedia, dbPutPhoto, dbDeletePhoto, dbGetPhoto, dbPut } from '../../data/db'
 import { parseIcs }      from '../../utils/icsParser'
 import * as audio from '../../utils/audio'
 
@@ -28,23 +29,6 @@ const TEXT_SIZES = {
 }
 
 const ZOOM_ANIM_MS = 380
-
-function applyRecurFilter(ms, mode) {
-  if (mode === 'all') return ms
-  const now    = new Date()
-  const nonRec = ms.filter(m => !m.recurrence_id)
-  const rec    = ms.filter(m =>  m.recurrence_id)
-  if (mode === 'past')   return [...nonRec, ...rec.filter(m => new Date(m.date) <  now)]
-  if (mode === 'future') return [...nonRec, ...rec.filter(m => new Date(m.date) >= now)]
-  // 'next': one instance per series — nearest upcoming, or most recent past if none upcoming
-  const byId = {}
-  for (const m of rec) { (byId[m.recurrence_id] ??= []).push(m) }
-  const picked = Object.values(byId).map(arr => {
-    const up = arr.filter(m => new Date(m.date) >= now).sort((a, b) => new Date(a.date) - new Date(b.date))
-    return up.length ? up[0] : arr.sort((a, b) => new Date(b.date) - new Date(a.date))[0]
-  })
-  return [...nonRec, ...picked]
-}
 
 export default function TimelineView({ milestones, setMilestones }) {
   const [zoom,          setZoom]          = useState('years')
@@ -555,9 +539,10 @@ export default function TimelineView({ milestones, setMilestones }) {
 
   // ── CRUD ─────────────────────────────────────────────────────────────────────
   async function executeSave(data, existing) {
-    // mediaFile / mediaRemoved are transfer-only fields from the form — strip them
-    // before passing to the data layer, and handle blob persistence here.
-    const { mediaFile, mediaRemoved, ...milestoneData } = data
+    // photoFile / photoRemoved / mediaFile / mediaRemoved are transfer-only fields
+    // from the form — strip them before passing to the data layer and handle blob
+    // persistence here.
+    const { mediaFile, mediaRemoved, photoFile, photoRemoved, ...milestoneData } = data
     const newMediaType = mediaFile
       ? (mediaFile.type.startsWith('video/') ? 'video' : 'audio')
       : null
@@ -567,36 +552,40 @@ export default function TimelineView({ milestones, setMilestones }) {
         const mediaType = mediaFile    ? newMediaType
                         : mediaRemoved ? null
                         : (existing.media_type ?? null)
-        const updated = await updateMilestone(existing.id, { ...milestoneData, media_type: mediaType }, existing)
-        if (mediaFile) await dbPutMedia(updated.id, mediaFile, mediaFile.type)
+        const hasPhoto  = photoFile    ? true
+                        : photoRemoved ? false
+                        : (existing.has_photo ?? false)
+        const updated = await updateMilestone(existing.id, { ...milestoneData, media_type: mediaType, has_photo: hasPhoto }, existing)
+        if (mediaFile)    await dbPutMedia(updated.id, mediaFile, mediaFile.type)
+        if (photoFile)    await dbPutPhoto(updated.id, photoFile, photoFile.type)
+        if (photoRemoved) await dbDeletePhoto(updated.id)
         const newMs = milestones.map(m => m.id === existing.id ? updated : m)
         pushHistory(newMs)
         setMilestones(newMs)
         audio.playEditSave()
       } else if (milestoneData.recurrence === 'annual') {
         // Generate one instance per year from base year to chosen end year (max +99)
-        const rid       = uid()
-        const baseDate  = new Date(milestoneData.date)
-        const baseYear  = baseDate.getFullYear()
-        const endYear   = Math.max(baseYear, Math.min(
-          milestoneData.recurrenceEndYear ?? Math.max(baseYear, new Date().getFullYear()) + 3,
-          baseYear + 99
-        ))
-        const created   = []
-        for (let y = baseYear; y <= endYear; y++) {
-          const d = new Date(baseDate)
-          d.setFullYear(y)
+        const rid      = uid()
+        const baseDate = new Date(milestoneData.date)
+        const baseYear = baseDate.getFullYear()
+        const reqEnd   = milestoneData.recurrenceEndYear ?? Math.max(baseYear, new Date().getFullYear()) + 3
+        const dates    = expandAnnualDates(baseDate, reqEnd)
+        const created  = []
+        for (const d of dates) {
+          const isBase = d.getFullYear() === baseYear
           const m = await addMilestone({
             ...milestoneData,
             date:          d,
             recurrence_id: rid,
             // only the base-year instance keeps the original note / photo / media / url
-            note:       y === baseYear ? milestoneData.note      : '',
-            photo_uri:  y === baseYear ? milestoneData.photo_uri : '',
-            media_type: y === baseYear ? newMediaType            : null,
-            url:        y === baseYear ? milestoneData.url       : '',
+            note:       isBase ? milestoneData.note      : '',
+            photo_uri:  '',
+            has_photo:  isBase ? milestoneData.has_photo : false,
+            media_type: isBase ? newMediaType            : null,
+            url:        isBase ? milestoneData.url       : '',
           })
-          if (y === baseYear && mediaFile) await dbPutMedia(m.id, mediaFile, mediaFile.type)
+          if (isBase && mediaFile) await dbPutMedia(m.id, mediaFile, mediaFile.type)
+          if (isBase && milestoneData.photoFile) await dbPutPhoto(m.id, milestoneData.photoFile, milestoneData.photoFile.type)
           created.push(m)
         }
         const newMs = [...milestones, ...created]
@@ -605,8 +594,9 @@ export default function TimelineView({ milestones, setMilestones }) {
         setNewlyAddedId(created[0].id)
         audio.playChime()
       } else {
-        const m = await addMilestone({ ...milestoneData, media_type: newMediaType })
+        const m = await addMilestone({ ...milestoneData, media_type: newMediaType, has_photo: !!photoFile })
         if (mediaFile) await dbPutMedia(m.id, mediaFile, mediaFile.type)
+        if (photoFile) await dbPutPhoto(m.id, photoFile, photoFile.type)
         const newMs = [...milestones, m]
         pushHistory(newMs)
         setMilestones(newMs)
@@ -625,22 +615,23 @@ export default function TimelineView({ milestones, setMilestones }) {
 
   async function handleSave(data, existing) {
     audio.init()   // ensure AudioContext is running (form submit = user gesture)
-    const { mediaFile } = data
+    const { mediaFile, photoFile } = data
+    const bigFile = mediaFile || (photoFile && photoFile.size > 50 * 1024 * 1024 ? photoFile : null)
 
-    if (mediaFile) {
+    if (bigFile) {
       let remaining = null
       if (navigator.storage?.estimate) {
         try {
           const { quota, usage } = await navigator.storage.estimate()
           remaining = quota - usage
-          if (remaining < mediaFile.size) {
+          if (remaining < bigFile.size) {
             showToast('Not enough storage space for this file. Free up space and try again.')
             return
           }
         } catch { /* estimate unavailable, proceed */ }
       }
-      if (mediaFile.size > 50 * 1024 * 1024) {
-        setMediaConfirm({ data, existing, fileSize: mediaFile.size, remaining })
+      if (bigFile.size > 50 * 1024 * 1024) {
+        setMediaConfirm({ data, existing, fileSize: bigFile.size, remaining })
         return
       }
     }
@@ -778,8 +769,22 @@ export default function TimelineView({ milestones, setMilestones }) {
   }
 
   // ── Backup ───────────────────────────────────────────────────────────────────
-  function handleSaveBackup() {
-    const json = JSON.stringify(milestones, null, 2)
+  async function handleSaveBackup() {
+    // Collect photos as base64 data-URIs keyed by milestone id
+    const photos = {}
+    for (const m of milestones) {
+      if (!m.has_photo) continue
+      try {
+        const result = await dbGetPhoto(m.id)
+        if (!result) continue
+        const buf = await result.blob.arrayBuffer()
+        const b64 = btoa([...new Uint8Array(buf)].map(b => String.fromCharCode(b)).join(''))
+        photos[m.id] = `data:${result.mimeType};base64,${b64}`
+      } catch { /* skip unreadable photo */ }
+    }
+
+    const payload = { milestones, photos }
+    const json = JSON.stringify(payload, null, 2)
     const blob = new Blob([json], { type: 'application/json' })
     const url  = URL.createObjectURL(blob)
     const a    = document.createElement('a')
@@ -833,11 +838,39 @@ export default function TimelineView({ milestones, setMilestones }) {
     const file = e.target.files[0]
     if (!file) return
     try {
-      const text     = await file.text()
-      const data     = JSON.parse(text)
-      const restored = await restoreMilestones(data)
-      setMilestones(restored)
-      historyRef.current = { stack: [restored], idx: 0 }
+      const text   = await file.text()
+      const parsed = JSON.parse(text)
+
+      // Support both legacy format (array) and new format ({ milestones, photos })
+      const items  = Array.isArray(parsed) ? parsed : (parsed.milestones ?? parsed)
+      const photos = (!Array.isArray(parsed) && parsed.photos) ? parsed.photos : {}
+
+      const restored = await restoreMilestones(items)
+
+      // Re-import photo blobs into the media store
+      for (const m of restored) {
+        const dataUri = photos[m.id]
+        if (!dataUri) continue
+        try {
+          const [header, b64] = dataUri.split(',')
+          const mimeType = header.match(/:(.*?);/)[1]
+          const raw      = atob(b64)
+          const arr      = new Uint8Array(raw.length)
+          for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i)
+          const blob = new Blob([arr], { type: mimeType })
+          await dbPutPhoto(m.id, blob, mimeType)
+          // Mark the milestone as having a photo now that the blob is stored
+          m.has_photo = true
+        } catch { /* malformed data-URI — skip */ }
+      }
+
+      // Persist any has_photo=true updates
+      for (const m of restored) {
+        if (m.has_photo) await dbPut(m)
+      }
+
+      setMilestones([...restored])
+      historyRef.current = { stack: [[...restored]], idx: 0 }
       setCanUndo(false)
       setCanRedo(false)
     } catch (err) {

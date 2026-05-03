@@ -27,4 +27,7 @@ export default defineConfig({
     }),
   ],
   base: '/',
+  test: {
+    environment: 'node',
+  },
 })

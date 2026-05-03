@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react'
 import { DEFAULT_CATEGORIES } from '../../utils/colors'
 import { buildDateFromParts } from '../../utils/dates'
+import { dbGetPhoto } from '../../data/db'
 
 const MONTHS = [
   { v: '1',  l: 'Jan' }, { v: '2',  l: 'Feb' }, { v: '3',  l: 'Mar' },
@@ -20,7 +21,13 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
   const [category,   setCategory]   = useState(existing?.category  ?? 'personal')
   const [note,       setNote]       = useState(existing?.note       ?? '')
   const [url,        setUrl]        = useState(existing?.url        ?? '')
-  const [photoUri,      setPhotoUri]      = useState(existing?.photo_uri ?? '')
+
+  // Photo state — File object for new selection; objectUrl for preview
+  const [photoFile,       setPhotoFile]       = useState(null)
+  const [photoObjectUrl,  setPhotoObjectUrl]  = useState(null)  // new photo preview
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState(null) // loaded from IDB for edit
+  const [photoRemoved,    setPhotoRemoved]    = useState(false)
+
   const [mediaFile,     setMediaFile]     = useState(null)   // new File selected this session
   const [mediaRemoved,  setMediaRemoved]  = useState(false)  // user cleared existing media
   const [mediaObjectUrl, setMediaObjectUrl] = useState(null) // transient preview URL
@@ -30,7 +37,24 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
   const photoRef = useRef(null)
   const mediaRef = useRef(null)
 
-  // Revoke preview URL when it changes or the form unmounts
+  // Load existing photo blob from IndexedDB for edit mode
+  React.useEffect(() => {
+    if (!isEdit || !existing?.has_photo) return
+    let objectUrl
+    dbGetPhoto(existing.id).then(result => {
+      if (!result) return
+      objectUrl = URL.createObjectURL(result.blob)
+      setExistingPhotoUrl(objectUrl)
+    })
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl) }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Revoke new-photo preview URL on change or unmount
+  React.useEffect(() => {
+    return () => { if (photoObjectUrl) URL.revokeObjectURL(photoObjectUrl) }
+  }, [photoObjectUrl])
+
+  // Revoke media preview URL on change or unmount
   React.useEffect(() => {
     return () => { if (mediaObjectUrl) URL.revokeObjectURL(mediaObjectUrl) }
   }, [mediaObjectUrl])
@@ -50,7 +74,6 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
     if (recurrence && year.length >= 4) {
       const base = Number(year)
       setRecEndYear(y => {
-        // only override if blank or user hasn't manually changed it
         const current = Number(y)
         const def = Math.max(base, new Date().getFullYear()) + 3
         return (!y || current < base) ? String(def) : y
@@ -60,6 +83,26 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
 
   const canSave = title.trim() && year.length >= 4
 
+  // Determine what to show in the photo section
+  const previewUrl    = photoFile ? photoObjectUrl : (!photoRemoved ? existingPhotoUrl : null)
+  const hasExisting   = !photoRemoved && !!existing?.has_photo && !photoFile
+
+  function handlePhotoSelect(file) {
+    if (!file) return
+    if (photoObjectUrl) URL.revokeObjectURL(photoObjectUrl)
+    setPhotoFile(file)
+    setPhotoRemoved(false)
+    setPhotoObjectUrl(URL.createObjectURL(file))
+  }
+
+  function handlePhotoRemove() {
+    if (photoObjectUrl) URL.revokeObjectURL(photoObjectUrl)
+    setPhotoFile(null)
+    setPhotoObjectUrl(null)
+    setPhotoRemoved(true)
+    if (photoRef.current) photoRef.current.value = ''
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     if (!canSave || busy) return
@@ -67,6 +110,9 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
     try {
       const date = buildDateFromParts(month, year, precision, day)
       const selectedCat = categories.find(c => c.id === category)
+      const hasPhoto = photoFile
+        ? true
+        : (!photoRemoved && !!existing?.has_photo)
       await onSave({
         title: title.trim(),
         date,
@@ -74,7 +120,9 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
         category,
         color: selectedCat?.color,
         note: note.trim(),
-        photo_uri: photoUri,
+        has_photo: hasPhoto,
+        photoFile,
+        photoRemoved,
         mediaFile,
         mediaRemoved,
         url: url.trim(),
@@ -223,11 +271,23 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
         {/* Photo */}
         <div className="sheet-field">
           <label className="field-label">photo (optional)</label>
-          {photoUri ? (
+          {previewUrl ? (
             <div className="photo-preview-wrap">
-              <img src={photoUri} className="photo-preview" alt="milestone" />
-              <button type="button" className="photo-remove"
-                onClick={() => { setPhotoUri(''); if (photoRef.current) photoRef.current.value = '' }}>
+              <img src={previewUrl} className="photo-preview" alt="milestone" />
+              <button type="button" className="photo-remove" onClick={handlePhotoRemove}>
+                remove
+              </button>
+            </div>
+          ) : hasExisting ? (
+            // Existing photo not yet loaded from IDB — show placeholder while loading
+            <div className="audio-attached-row">
+              <span className="audio-attached-label">photo attached</span>
+              <button type="button" className="btn-ghost" style={{ fontSize: '0.72rem' }}
+                onClick={() => photoRef.current?.click()}>
+                replace
+              </button>
+              <button type="button" className="btn-ghost" style={{ fontSize: '0.72rem' }}
+                onClick={handlePhotoRemove}>
                 remove
               </button>
             </div>
@@ -241,13 +301,7 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
           <input
             ref={photoRef} type="file" accept="image/*"
             style={{ display: 'none' }}
-            onChange={e => {
-              const file = e.target.files[0]
-              if (!file) return
-              const reader = new FileReader()
-              reader.onload = () => setPhotoUri(reader.result)
-              reader.readAsDataURL(file)
-            }}
+            onChange={e => handlePhotoSelect(e.target.files[0])}
           />
         </div>
 

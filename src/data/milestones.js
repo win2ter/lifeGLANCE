@@ -19,7 +19,7 @@ export function buildMilestone({
   category       = 'personal',
   color,
   note           = '',
-  photo_uri      = '',
+  has_photo      = false,
   media_type     = null,   // null | 'audio' | 'video'
   url            = '',
   recurrence     = null,   // null | 'annual'
@@ -38,7 +38,7 @@ export function buildMilestone({
     category,
     color:          color || categoryColor(category),
     note,
-    photo_uri,
+    has_photo,
     media_type,
     url,
     recurrence,
@@ -66,9 +66,12 @@ export async function updateMilestone(id, updates, existing) {
   const today   = new Date()
   const now     = new Date().toISOString()
 
+  // Strip photo_uri from any legacy data still in flight
+  const { photo_uri: _discard, ...safeUpdates } = updates
+
   const m = {
     ...existing,
-    ...updates,
+    ...safeUpdates,
     id,
     date:      dateObj.toISOString(),
     direction: dateObj < today ? 'past' : 'future',
@@ -85,12 +88,16 @@ export async function deleteMilestone(id) {
 
 // Clear all milestones and replace with the supplied array (preserves original IDs).
 // Also wipes all media blobs — they are never included in JSON backups, so any
-// media_type flags on restored items are reset to null to stay consistent.
+// media_type / has_photo flags on restored items are reset to stay consistent.
 export async function restoreMilestones(items) {
   const existing = await dbGetAll()
   for (const m of existing) await dbDelete(m.id)
   await dbClearAllMedia()
-  const clean = items.map(m => ({ ...m, media_type: null }))
+  const clean = items.map(({ photo_uri: _discard, ...m }) => ({
+    ...m,
+    media_type: null,
+    has_photo:  false,
+  }))
   for (const m of clean) await dbPut(m)
   return clean
 }
