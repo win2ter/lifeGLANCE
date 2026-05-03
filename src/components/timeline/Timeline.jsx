@@ -211,10 +211,6 @@ const Timeline = forwardRef(function Timeline(
   // Below-axis (future) milestones still connect to axisY directly.
   const msAxisY = axisY - erasBandH
 
-  // Min bar width (px) before the era title is shown inside the bar.
-  const ERA_LABEL_MIN_PX = 55
-  // Min bar width (px) before start/end year markers appear at the bar edges (deep zoom).
-  const ERA_DATES_MIN_PX = 200
   // ─────────────────────────────────────────────────────────────────────────
 
   const today    = new Date()
@@ -223,6 +219,7 @@ const Timeline = forwardRef(function Timeline(
   const ticks    = getTickMarks(zoom, startMs, endMs, w)
   const todayX   = dateToX(today.getTime(), startMs, endMs, w)
   const msPerPx  = getMsPerPx(zoom, w, customHalfMs)
+  const daysPerPx = msPerPx / 86400000
   // In compact mode: reserve 120px from the top for the today label, and
   // cluster milestones more aggressively to reduce card pile-up near today.
   const TOP_RESERVE        = compactLayout ? 120 : 16
@@ -384,10 +381,11 @@ const Timeline = forwardRef(function Timeline(
                       fill={era.color} opacity={0.85} rx={1} />
                   )}
 
-                  {/* Title label — shown when bar is wide enough for readable text */}
-                  {barW >= ERA_LABEL_MIN_PX && labelText && (
+                  {/* Title label — years zoom or closer, and bar at least 7% of viewport */}
+                  {daysPerPx < 6.0 && barW >= w * 0.07 && labelText && (
                     <text
-                      x={x1 + 6}
+                      x={(x1 + x2) / 2}
+                      textAnchor="middle"
                       y={barY + Math.round(barH * 0.73)}
                       fill={era.color}
                       fontSize="0.45em"
@@ -396,8 +394,8 @@ const Timeline = forwardRef(function Timeline(
                     >{labelText}</text>
                   )}
 
-                  {/* Start/end year markers — shown at deep zoom (bar very wide) */}
-                  {barW >= ERA_DATES_MIN_PX && eraStartX >= 4 && (
+                  {/* Start/end year markers — months zoom or closer, bar at least 45% of viewport */}
+                  {daysPerPx < 0.8 && barW >= w * 0.45 && eraStartX >= 4 && (
                     <text
                       x={eraStartX + 4}
                       y={barY + barH - 2}
@@ -407,7 +405,7 @@ const Timeline = forwardRef(function Timeline(
                       opacity={0.60}
                     >{startYear}</text>
                   )}
-                  {barW >= ERA_DATES_MIN_PX && eraEndX <= w - 4 && (
+                  {daysPerPx < 0.8 && barW >= w * 0.45 && eraEndX <= w - 4 && (
                     <text
                       x={eraEndX - 4}
                       y={barY + barH - 2}
