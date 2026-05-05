@@ -529,20 +529,18 @@ export default function TimelineView({ milestones, setMilestones }) {
           break
         }
         case 'Escape': {
-          // Drill-in exit takes priority — entering drill-in sets zoom='custom' which
-          // auto-focuses the custom zoom input, causing the first ESC to only blur
-          // the input rather than exit the chapter view.
-          if (anyDrillIn) { s.exitDrillIn(); break }
           if (customInputRef.current && document.activeElement === customInputRef.current) {
             customInputRef.current.blur()
-            break
+            if (!anyDrillIn) break
+            // If drilled in, fall through and exit drill-in after blurring the input.
           }
-          if (s.detail)                setDetail(null)
-          else if (s.addOpen)          s.closeSheet()
-          else if (s.chapterSheetOpen) { setChapterSheetOpen(false); setEditChapter(null) }
-          else if (s.settingsOpen)     setSettingsOpen(false)
-          else if (s.helpOpen)         setHelpOpen(false)
-          else if (s.searchOpen)       setSearchOpen(false)
+          if (s.detail)                { setDetail(null); break }
+          if (s.addOpen)               { s.closeSheet(); break }
+          if (s.chapterSheetOpen)      { setChapterSheetOpen(false); setEditChapter(null); break }
+          if (s.settingsOpen)          { setSettingsOpen(false); break }
+          if (s.helpOpen)              { setHelpOpen(false); break }
+          if (s.searchOpen)            { setSearchOpen(false); break }
+          if (anyDrillIn)              { s.exitDrillIn(); break }
           break
         }
         default: break
