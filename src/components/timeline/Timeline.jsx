@@ -371,7 +371,10 @@ const Timeline = forwardRef(function Timeline(
                   onMouseLeave={() => setChapterTip(null)}
                   onMouseMove={e => setChapterTip(t => t ? { ...t, x: e.clientX, y: e.clientY } : null)}
                   onClick={() => {
-                    // Schedule drill-in on single click; cancel if double-click fires first.
+                    // Clear any previous timer before setting a new one — a double-click
+                    // fires onClick twice, and without this the first timer survives even
+                    // after onDoubleClick clears the second one.
+                    clearTimeout(chapterClickTimer.current)
                     chapterClickTimer.current = setTimeout(() => onChapterClick?.(chapter), 250)
                   }}
                   onDoubleClick={() => {
