@@ -1037,6 +1037,10 @@ export default function TimelineView({ milestones, setMilestones }) {
   const drillChapters   = drilledChapter ? [drilledChapter] : chapters
   const drillHighlighted = highlightedIds
 
+  function fmtChapterDate(iso) {
+    return new Date(iso).toLocaleString('default', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+  }
+
   return (
     <div className="timeline-view">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
@@ -1047,19 +1051,30 @@ export default function TimelineView({ milestones, setMilestones }) {
         {/* Left: logo / breadcrumb */}
         {drilledChapter ? (
           <div className="drill-breadcrumb" style={{ '--drill-color': drilledChapter.color }}>
-            <button className="drill-breadcrumb-life" onClick={() => exitDrillIn()}>
-              <span className="logo-life">life</span><span className="logo-glance">GLANCE</span>
-            </button>
-            <span className="drill-breadcrumb-sep">›</span>
-            <TypewriterText
-              key={drilledChapter.id}
-              text={drilledChapter.title}
-              options={{ delay: 42, jitter: 16 }}
-              showCursor={false}
-              hideCursorWhenDone
-              className="drill-breadcrumb-chapter"
-            />
-            <button className="drill-breadcrumb-close" onClick={() => exitDrillIn()} title="exit chapter view">✕</button>
+            <div className="drill-breadcrumb-nav">
+              <button className="drill-breadcrumb-life" onClick={() => exitDrillIn()}>
+                <span className="logo-life">life</span><span className="logo-glance">GLANCE</span>
+              </button>
+              <span className="drill-breadcrumb-sep">›</span>
+              <TypewriterText
+                key={drilledChapter.id}
+                text={drilledChapter.title}
+                options={{ delay: 42, jitter: 16 }}
+                showCursor={false}
+                hideCursorWhenDone
+                className="drill-breadcrumb-chapter"
+              />
+              <button className="drill-breadcrumb-close" onClick={() => exitDrillIn()} title="exit chapter view">✕</button>
+            </div>
+            <div className="drill-breadcrumb-meta">
+              <span>{fmtChapterDate(drilledChapter.start)} – {fmtChapterDate(drilledChapter.end)}</span>
+              <span className="drill-breadcrumb-dot">·</span>
+              <span>{drilledChapter.milestoneIds.length} member{drilledChapter.milestoneIds.length !== 1 ? 's' : ''}</span>
+              {drilledChapter.description && <>
+                <span className="drill-breadcrumb-dot">·</span>
+                <span className="drill-breadcrumb-desc">{drilledChapter.description}</span>
+              </>}
+            </div>
           </div>
         ) : (
           <div className="logo logo-sm">
