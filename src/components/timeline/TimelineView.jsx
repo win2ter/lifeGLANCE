@@ -31,7 +31,7 @@ const TEXT_SIZES = {
   bigger: '30px',
 }
 
-const ZOOM_ANIM_MS = 380
+const ZOOM_ANIM_MS = 420
 
 export default function TimelineView({ milestones, setMilestones }) {
   const [zoom,          setZoom]          = useState('years')
@@ -760,9 +760,14 @@ export default function TimelineView({ milestones, setMilestones }) {
   }
 
   async function handleChapterDelete(id) {
-    await deleteChapter(id)
+    try {
+      await deleteChapter(id)
+    } catch (err) {
+      console.error('Failed to delete chapter:', err)
+      showToast('Failed to delete chapter. Please try again.')
+      return
+    }
     setChapters(prev => prev.filter(c => c.id !== id))
-    // If the deleted chapter is currently drilled into, exit drill-in immediately.
     if (drilledChapter?.id === id) exitDrillIn(true)
   }
 
