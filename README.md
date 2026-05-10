@@ -144,3 +144,12 @@ The image builds with Node 20 Alpine and serves the static output via nginx.
 ## Privacy
 
 lifeGLANCE has no backend, no analytics, no accounts, and no network requests beyond loading the app itself and fetching the Courier Prime font (cached after first load). Your timeline data is yours alone.
+
+---
+
+## Support
+
+If you have enjoyed using lifeGLANCE, consider supporting development:
+
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub_Sponsors-EA4AAA?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/krelltunez)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-F16061?logo=kofi&logoColor=white)](https://ko-fi.com/krelltunez)
