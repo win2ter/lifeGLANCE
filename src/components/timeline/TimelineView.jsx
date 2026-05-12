@@ -757,6 +757,8 @@ export default function TimelineView({ milestones, setMilestones }) {
         existing,
       )
       setChapters(prev => prev.map(c => c.id === existing.id ? updated : c))
+      // Keep drilledChapter in sync so the drill view reflects edits immediately.
+      if (drilledChapter?.id === existing.id) setDrilledChapter(updated)
     } else {
       const chapter = await createChapter({
         title:                  data.title,
