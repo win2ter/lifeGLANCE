@@ -111,8 +111,22 @@ export default function ChapterSheet({ onSave, onClose, onDelete, existing, mile
 
   function validateDates() {
     if (!startIso) { setDateError('start date is required'); return false }
+    if (startPrecision === 'day' && startYear.length >= 4) {
+      const maxDay = new Date(Number(startYear), Number(startMonth), 0).getDate()
+      if (Number(startDay) < 1 || Number(startDay) > maxDay) {
+        setDateError(`start day must be between 1 and ${maxDay} for the selected month`)
+        return false
+      }
+    }
     if (!ongoing) {
       if (!endIso) { setDateError('end date is required, or mark this chapter as ongoing'); return false }
+      if (endPrecision === 'day' && endYear.length >= 4) {
+        const maxDay = new Date(Number(endYear), Number(endMonth), 0).getDate()
+        if (Number(endDay) < 1 || Number(endDay) > maxDay) {
+          setDateError(`end day must be between 1 and ${maxDay} for the selected month`)
+          return false
+        }
+      }
       if (new Date(startIso) >= new Date(endIso)) {
         setDateError('end date must be after start date')
         return false
