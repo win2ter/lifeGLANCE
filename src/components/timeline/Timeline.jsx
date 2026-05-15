@@ -394,8 +394,12 @@ const Timeline = forwardRef(function Timeline(
               const labelFontPx  = remPx * 0.45
               const labelCharW   = labelFontPx * 0.60
               const labelMaxCh   = Math.floor((visW - 14) / labelCharW)
+              const durText      = chapterSpan(chapter.start, chapter.end)
+              const fullLabel    = `${chapter.title} · ${durText}`
               const labelText    = labelMaxCh > 2
-                ? (chapter.title.length <= labelMaxCh ? chapter.title : chapter.title.slice(0, labelMaxCh - 1) + '…')
+                ? (fullLabel.length <= labelMaxCh
+                    ? fullLabel
+                    : (chapter.title.length <= labelMaxCh ? chapter.title : chapter.title.slice(0, labelMaxCh - 1) + '…'))
                 : ''
 
               const startYear = new Date(chapter.start).getFullYear()
