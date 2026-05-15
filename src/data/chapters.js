@@ -32,15 +32,12 @@ export function buildChapter({
 
 export async function createChapter(data) {
   const chapter = buildChapter(data)
-  console.log('[chapters] createChapter writing:', chapter)
   await dbAddChapter(chapter)
   return chapter
 }
 
 export async function getChapter(id) {
-  const chapter = await dbGetChapter(id)
-  console.log('[chapters] getChapter read:', chapter)
-  return chapter
+  return dbGetChapter(id)
 }
 
 export async function listChapters() {
@@ -54,13 +51,11 @@ export async function updateChapter(id, updates, existing) {
     id,
     updated_at: new Date().toISOString(),
   }
-  console.log('[chapters] updateChapter writing:', chapter)
   await dbPutChapter(chapter)
   return chapter
 }
 
 export async function deleteChapter(id) {
-  console.log('[chapters] deleteChapter id:', id)
   await dbDeleteChapter(id)
 }
 
@@ -74,7 +69,6 @@ export async function addMilestoneToChapter(chapterId, milestoneId) {
     milestoneIds: [...chapter.milestoneIds, milestoneId],
     updated_at:   new Date().toISOString(),
   }
-  console.log('[chapters] addMilestoneToChapter writing:', updated)
   await dbPutChapter(updated)
   return updated
 }
@@ -88,7 +82,6 @@ export async function removeMilestoneFromChapter(chapterId, milestoneId) {
     milestoneIds: chapter.milestoneIds.filter(id => id !== milestoneId),
     updated_at:   new Date().toISOString(),
   }
-  console.log('[chapters] removeMilestoneFromChapter writing:', updated)
   await dbPutChapter(updated)
   return updated
 }
