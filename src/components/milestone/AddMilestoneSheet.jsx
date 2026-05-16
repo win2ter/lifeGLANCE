@@ -125,13 +125,14 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
     return () => { if (mediaObjectUrl) URL.revokeObjectURL(mediaObjectUrl) }
   }, [mediaObjectUrl])
 
-  // Pre-fill date from existing
+  // Pre-fill date from existing — use UTC methods so the form shows the same
+  // calendar date that was stored, regardless of the user's local UTC offset.
   React.useEffect(() => {
     if (existing?.date) {
       const d = new Date(existing.date)
-      setMonth(String(d.getMonth() + 1))
-      setDay(String(d.getDate()))
-      setYear(String(d.getFullYear()))
+      setMonth(String(d.getUTCMonth() + 1))
+      setDay(String(d.getUTCDate()))
+      setYear(String(d.getUTCFullYear()))
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 

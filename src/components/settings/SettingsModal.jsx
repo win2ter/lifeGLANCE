@@ -167,7 +167,7 @@ export default function SettingsModal({
               type="date"
               className="settings-birthday-input"
               value={birthday}
-              max={new Date().toISOString().slice(0, 10)}
+              max={(() => { const t = new Date(); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}` })()}
               onChange={e => onBirthdayChange(e.target.value)}
             />
           </div>
