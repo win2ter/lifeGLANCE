@@ -17,8 +17,16 @@ export function ageAtDate(birthdayStr, targetDateStr) {
   return differenceInYears(target, born)
 }
 
+// Converts a UTC-midnight ISO date string to a local Date at noon on the same
+// calendar date, so date-fns comparisons use the intended day regardless of
+// the user's UTC offset.
+function toLocalNoon(dateStr) {
+  const d = new Date(dateStr)
+  return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12, 0, 0)
+}
+
 export function relativeLabel(dateStr, precision = 'day') {
-  const date = new Date(dateStr)
+  const date = toLocalNoon(dateStr)
   const now  = new Date()
   const past = isPast(date) && date < now
 
@@ -44,7 +52,7 @@ export function relativeLabel(dateStr, precision = 'day') {
 }
 
 export function formatDateDisplay(dateStr, precision = 'day') {
-  const date = new Date(dateStr)
+  const date = toLocalNoon(dateStr)
   if (precision === 'year')  return format(date, 'yyyy')
   if (precision === 'month') return format(date, 'MMMM yyyy')
   return format(date, 'MMMM d, yyyy')
@@ -52,7 +60,7 @@ export function formatDateDisplay(dateStr, precision = 'day') {
 
 // Returns { years, months } elapsed/remaining for count-up animation
 export function getYearsMonths(dateStr) {
-  const date = new Date(dateStr)
+  const date = toLocalNoon(dateStr)
   const now  = new Date()
   const past = date < now
   const a = past ? date : now

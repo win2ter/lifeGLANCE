@@ -491,7 +491,8 @@ const Timeline = forwardRef(function Timeline(
           const tDate    = today.toLocaleDateString('en-US', { month: 'long', day: 'numeric' }).toLowerCase()
           const tYear    = today.getFullYear()
           const centered = Math.abs(panMs) < 1
-          const todayAge = birthday ? ageAtDate(birthday, today.toISOString().slice(0, 10)) : null
+          const todayLocalDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+          const todayAge = birthday ? ageAtDate(birthday, todayLocalDate) : null
           const lineY1   = todayAge !== null ? 68 : 54
           return (
             <g style={{

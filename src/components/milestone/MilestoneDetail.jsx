@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { formatDateDisplay, relativeLabel, ageAtDate } from '../../utils/dates'
 import { dbGetMedia, dbGetPhoto } from '../../data/db'
 
-export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelete, onDeleteSeries, birthday }) {
+export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelete, onDeleteSeries, birthday, categories = [] }) {
   const [audioUrl,  setAudioUrl]  = useState(null)
   const [photoUrl,  setPhotoUrl]  = useState(null)
   const [confirm,   setConfirm]   = useState(null) // null | 'single' | 'series'
@@ -69,7 +69,7 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
         {/* Category */}
         <div className="detail-category">
           <div className="detail-cat-dot" style={{ background: m.color }} />
-          {m.category}
+          {categories.find(c => c.id === m.category)?.label ?? m.category}
         </div>
 
         {/* Recurrence badge */}

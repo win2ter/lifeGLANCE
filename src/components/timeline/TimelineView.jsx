@@ -1399,6 +1399,7 @@ export default function TimelineView({ milestones, setMilestones }) {
           onDelete={handleDelete}
           onDeleteSeries={handleDeleteSeries}
           birthday={birthday}
+          categories={categories}
         />
       )}
       {searchOpen && (
