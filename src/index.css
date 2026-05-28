@@ -1485,6 +1485,18 @@ button, input, select, textarea {
   flex-wrap: wrap;
 }
 
+.settings-persist-notice {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
 /* ─── ICS Import Modal ──────────────────────────────────────────────────────── */
 /* The base .sheet already provides overflow-y: auto + max-height: 88vh.
    The actions bar is sticky so cancel/import stay visible while scrolling. */

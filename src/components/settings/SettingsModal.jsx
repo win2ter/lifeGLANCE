@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useRef, useState, useEffect } from 'react'
 import { saveCategories } from '../../utils/colors'
 import { isMuted, setMuted } from '../../utils/audio'
 
@@ -25,11 +25,23 @@ export default function SettingsModal({
   onClose,
   ultraCompact = false,
 }) {
-  const [newLabel,  setNewLabel]  = useState('')
-  const [newColor,  setNewColor]  = useState(COLOR_PALETTE[0])
-  const [soundOn,   setSoundOn]   = useState(() => !isMuted())
+  const [newLabel,   setNewLabel]   = useState('')
+  const [newColor,   setNewColor]   = useState(COLOR_PALETTE[0])
+  const [soundOn,    setSoundOn]    = useState(() => !isMuted())
+  const [persisted,  setPersisted]  = useState(null)
   const fileRef    = useRef(null)
   const icsFileRef = useRef(null)
+
+  useEffect(() => {
+    navigator.storage?.persisted?.()
+      .then(p => setPersisted(p))
+      .catch(() => {})
+  }, [])
+
+  async function handleRequestPersist() {
+    const granted = await navigator.storage?.persist?.()
+    setPersisted(!!granted)
+  }
 
   const usedIds = new Set(milestones.map(m => m.category))
 
@@ -194,6 +206,18 @@ export default function SettingsModal({
             <input ref={icsFileRef} type="file" accept=".ics"
               style={{ display: 'none' }} onChange={handleIcsFileChange} />
           </div>
+          {persisted === false && (
+            <div className="settings-persist-notice">
+              <span className="settings-note" style={{ marginTop: 0 }}>
+                allow persistent storage so the browser never silently clears your data.
+              </span>
+              <button
+                className="btn"
+                style={{ fontSize: '0.75rem', padding: '0.4rem 0.85rem', flexShrink: 0 }}
+                onClick={handleRequestPersist}
+              >allow persistent storage</button>
+            </div>
+          )}
           <p className="settings-note" style={{ marginTop: '0.5rem' }}>
             .ics import supports all-day events only. Timed events are skipped — the import dialog shows a count of how many were omitted.
           </p>
