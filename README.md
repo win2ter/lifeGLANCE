@@ -1,11 +1,11 @@
 # lifeGLANCE
 
-**Your life, at a glance.** A zoomable personal timeline for milestones — past and future.
+**Your life, at a glance.** A zoomable personal timeline for milestones, past and future. Runs entirely in your browser, with no account, no server, and no sync. Your data never leaves your device.
 
-Built for people who want to map their life without handing their data to a cloud service. lifeGLANCE is a privacy-first progressive web app that runs entirely in the browser. There is no account, no server, no sync — your data never leaves your device.
+Part of the **GLANCE family**: focused, standalone apps connected through a shared intent protocol. See also [dayGLANCE](https://github.com/krelltunez/dayGLANCE) (today), [lastGLANCE](https://github.com/krelltunez/lastGLANCE) (recent upkeep), and lifeGLANCE (your whole timeline).
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.6.0-brightgreen.svg)](../../releases)
+[![Version](https://img.shields.io/badge/version-1.5.3-green.svg)](../../releases)
 
 ---
 
@@ -13,9 +13,49 @@ Built for people who want to map their life without handing their data to a clou
 
 ---
 
-## Install
+## Quick Start
 
-Use the hosted version at [lifeglance.app](https://lifeglance.app), or self-host with Docker (see below).
+Use the hosted version at [lifeglance.app](https://lifeglance.app), or self-host with Docker.
+
+### Self-host with Docker
+
+```bash
+docker run -d \
+  -p 8080:80 \
+  --restart unless-stopped \
+  ghcr.io/krelltunez/lifeglance:latest
+```
+
+Or with Docker Compose:
+
+```yaml
+services:
+  app:
+    image: ghcr.io/krelltunez/lifeglance:latest
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+```
+
+Available at `http://localhost:8080`.
+
+### Build from Source
+
+Requires Node 20+.
+
+```bash
+npm install
+npm run dev
+```
+
+The dev server starts at `http://localhost:5173`.
+
+```bash
+npm run build   # outputs to /dist
+npm run preview # serve the production build locally
+```
+
+The Docker image builds with Node 20 Alpine and serves the static output via nginx.
 
 ---
 
@@ -30,7 +70,7 @@ Use the hosted version at [lifeglance.app](https://lifeglance.app), or self-host
 
 **Milestones**
 - Title, date (day / month / year precision), category, note, and URL
-- Photo, audio, and video attachments stored as local blobs — no base64 bloat
+- Photo, audio, and video attachments stored as local blobs, with no base64 bloat
 - Annual recurrence with configurable end year
 - Inline delete confirmation, undo / redo history
 
@@ -38,23 +78,23 @@ Use the hosted version at [lifeglance.app](https://lifeglance.app), or self-host
 - All / Past / Future view modes
 - Full-text search across titles and notes
 - Stats panel and summary modal
-- "On this day" — milestones from this date in past years
+- "On this day": milestones from this date in past years
 - Minimap scrubbar for fast navigation
 
 **Import / export**
 - Import events from `.ics` calendar files
-- Export timeline as a high-resolution PNG (2×, with branding watermark)
+- Export timeline as a high-resolution PNG (2x, with branding watermark)
 - JSON backup and restore
 
 **App**
-- Installable PWA — works fully offline after first load
+- Installable PWA, works fully offline after first load
 - Ambient generative audio with mute toggle
 - Adjustable text size
 - Portrait-mode warning for mobile
 
 ---
 
-## Keyboard shortcuts
+## Keyboard Shortcuts
 
 | Key | Action |
 |---|---|
@@ -76,7 +116,21 @@ Use the hosted version at [lifeglance.app](https://lifeglance.app), or self-host
 
 ---
 
-## Storage
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | React 18 + Vite |
+| PWA | vite-plugin-pwa (Workbox) |
+| Storage | IndexedDB (milestones + media), localStorage (settings) |
+| Dates | date-fns |
+| Font | Courier Prime (Google Fonts, cached offline) |
+| Audio | Web Audio API, synthesised, no samples |
+| Deployment | Docker + nginx |
+
+---
+
+## Sync & Storage
 
 All data is stored locally in your browser using IndexedDB. Nothing is sent to a server.
 
@@ -86,58 +140,11 @@ All data is stored locally in your browser using IndexedDB. Nothing is sent to a
 | IndexedDB `media` | Audio / video blobs, keyed by milestone ID |
 | `localStorage` | Settings and preferences only (a few KB) |
 
-Media blobs are fetched lazily — only when you open a milestone detail or click play — so startup time stays fast regardless of how many attachments you have.
+Media blobs are fetched lazily, only when you open a milestone detail or click play, so startup time stays fast regardless of how many attachments you have.
 
-**Backup:** use *Settings → save backup* to export a JSON file of your milestone records. **Audio and video attachments are not included in the JSON backup — re-attach them after restoring if needed.**
+**Backup:** use *Settings → save backup* to export a JSON file of your milestone records. **Audio and video attachments are not included in the JSON backup, so re-attach them after restoring if needed.**
 
 **Storage limits** vary by browser. Chrome and Firefox allow multiple GB. Safari on iOS is more restrictive and may evict data for origins not visited for 7+ days unless the app is installed to the home screen. The current usage and available quota are shown in the Help modal (`?`).
-
----
-
-## Running locally
-
-Requires Node 20+.
-
-```bash
-npm install
-npm run dev
-```
-
-The dev server starts at `http://localhost:5173`.
-
----
-
-## Building
-
-```bash
-npm run build   # outputs to /dist
-npm run preview # serve the production build locally
-```
-
----
-
-## Docker
-
-```bash
-docker build -t lifeglance .
-docker run -p 8080:80 lifeglance
-```
-
-The image builds with Node 20 Alpine and serves the static output via nginx.
-
----
-
-## Tech
-
-| | |
-|---|---|
-| Framework | React 18 + Vite |
-| PWA | vite-plugin-pwa (Workbox) |
-| Storage | IndexedDB (milestones + media), localStorage (settings) |
-| Dates | date-fns |
-| Font | Courier Prime (Google Fonts, cached offline) |
-| Audio | Web Audio API — synthesised, no samples |
-| Deployment | Docker + nginx |
 
 ---
 
@@ -147,9 +154,15 @@ lifeGLANCE has no backend, no analytics, no accounts, and no network requests be
 
 ---
 
+## License
+
+[MIT](LICENSE): free to use, self-host, modify, and distribute.
+
+---
+
 ## Support
 
-If you have enjoyed using lifeGLANCE, consider supporting its development:
+If lifeGLANCE has been useful to you, consider supporting its development:
 
 [![GitHub Sponsors](https://img.shields.io/badge/GitHub_Sponsors-EA4AAA?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/krelltunez)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-F16061?logo=kofi&logoColor=white)](https://ko-fi.com/krelltunez)
