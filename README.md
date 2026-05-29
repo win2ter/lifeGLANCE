@@ -154,6 +154,12 @@ lifeGLANCE has no backend, no analytics, no accounts, and no network requests be
 
 ---
 
+## Contributing
+
+Small fixes are welcome, and larger changes should start with an issue. See [CONTRIBUTING.md](CONTRIBUTING.md) for scope, expectations, and conventions.
+
+---
+
 ## License
 
 [MIT](LICENSE): free to use, self-host, modify, and distribute.
