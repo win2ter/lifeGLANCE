@@ -1610,38 +1610,84 @@ button, input, select, textarea {
 }
 
 /* ─── Help modal ───────────────────────────────────────────────────────────── */
-.help-sheet { max-width: 440px; }
+.help-sheet { max-width: 420px; }
 
-.help-about-text {
-  font-size: 0.75rem;
-  color: var(--text-dim);
-  line-height: 1.65;
-  margin: 0 0 0.6rem;
+.help-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
-.help-about-text:last-child { margin-bottom: 0; }
-.help-about-name {
-  color: var(--text);
-  font-weight: 600;
-  letter-spacing: 0.01em;
+.help-header-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+  color: var(--amber);
+  flex-shrink: 0;
 }
 
-.help-storage-grid {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 0.3rem 0.75rem;
-  align-items: baseline;
+.help-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
 }
-.help-storage-label {
-  font-size: 0.68rem;
+.help-ext-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--amber);
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.help-ext-link:hover { opacity: 0.75; }
+.help-ext-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex-shrink: 0;
+}
+
+.help-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-top: 0.75rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  gap: 1rem;
+}
+.help-footer-storage {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.help-footer-meta {
+  font-size: 0.62rem;
   color: var(--text-muted);
-  white-space: nowrap;
 }
-.help-storage-value {
-  font-size: 0.68rem;
+.help-footer-value {
   color: var(--text-dim);
 }
-.help-storage-dim {
+.help-footer-dim {
   opacity: 0.55;
+}
+.help-shortcuts-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font);
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  background: rgba(232, 224, 208, 0.06);
+  border: 1px solid rgba(232, 224, 208, 0.14);
+  border-radius: 6px;
+  padding: 0.3rem 0.65rem 0.3rem 0.5rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.help-shortcuts-btn:hover {
+  background: rgba(232, 224, 208, 0.1);
+  color: var(--text);
 }
 
 /* ─── Keyboard shortcuts modal ─────────────────────────────────────────────── */
@@ -1675,42 +1721,6 @@ button, input, select, textarea {
   font-size: 0.72rem;
   color: var(--text-dim);
   vertical-align: middle;
-}
-
-.help-note {
-  font-size: 0.72rem;
-  color: var(--text-dim);
-  line-height: 1.55;
-  margin-top: 0.4rem;
-}
-
-.help-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  padding-top: 0.75rem;
-  margin-top: 0.5rem;
-  border-top: 1px solid var(--border);
-  gap: 1rem;
-}
-.help-footer-storage {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-.help-footer-meta {
-  font-size: 0.62rem;
-  color: var(--text-muted);
-}
-.help-footer-value {
-  color: var(--text-dim);
-}
-.help-footer-dim {
-  opacity: 0.55;
-}
-.help-footer-version {
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
 /* ─── Search palette ───────────────────────────────────────────────────────── */

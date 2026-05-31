@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { version as VERSION } from '../../../package.json'
 
 function fmtBytes(n) {
@@ -7,17 +7,6 @@ function fmtBytes(n) {
   if (n < 1024 ** 2)   return `${(n / 1024).toFixed(1)} KB`
   if (n < 1024 ** 3)   return `${(n / 1024 ** 2).toFixed(1)} MB`
   return `${(n / 1024 ** 3).toFixed(2)} GB`
-}
-
-function useLocalStorageSize() {
-  return useMemo(() => {
-    try {
-      const bytes = Object.keys(localStorage).reduce(
-        (sum, k) => sum + (localStorage.getItem(k)?.length ?? 0) * 2, 0
-      )
-      return fmtBytes(bytes)
-    } catch { return '—' }
-  }, [])
 }
 
 function useIndexedDBEstimate() {
@@ -31,9 +20,21 @@ function useIndexedDBEstimate() {
   return est
 }
 
-export default function HelpModal({ onClose }) {
-  const localSize = useLocalStorageSize()
-  const idbEst    = useIndexedDBEstimate()
+function ExternalLinkIcon() {
+  return (
+    <svg className="help-ext-icon" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M6 3H3a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+      <path d="M9 2h5v5M14 2 8 8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  )
+}
+
+export default function HelpModal({ onClose, onOpenShortcuts }) {
+  const idbEst = useIndexedDBEstimate()
+
+  const now = new Date()
+  const dateStr = now.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })
+  const timeStr = now.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 
   return (
     <div className="sheet-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
@@ -41,63 +42,63 @@ export default function HelpModal({ onClose }) {
 
         {/* ── Header ──────────────────────────────────────────────────────── */}
         <div className="sheet-header">
-          <span className="sheet-title">help</span>
+          <div className="help-header-title">
+            <svg className="help-header-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.6"/>
+              <path d="M9.5 9.5c0-1.38 1.12-2.5 2.5-2.5s2.5 1.12 2.5 2.5c0 1.5-1.5 2-2.5 2.5v.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+              <circle cx="12" cy="16.5" r="0.75" fill="currentColor"/>
+            </svg>
+            <span className="sheet-title">help &amp; feedback</span>
+          </div>
           <button className="sheet-close" onClick={onClose}>✕</button>
         </div>
 
-        {/* ── About ───────────────────────────────────────────────────────── */}
+        {/* ── Contact & Issues ─────────────────────────────────────────────── */}
         <div className="settings-section">
-          <div className="settings-label">about</div>
-          <p className="help-about-text">
-            <strong className="help-about-name">lifeGLANCE</strong> is a personal
-            timeline for your milestones and life chapters — all stored locally
-            in your browser, never sent anywhere.
-          </p>
-          <p className="help-about-text">
-            Add milestones with <kbd className="help-kbd">n</kbd>, create chapters
-            with <kbd className="help-kbd">⇧N</kbd>, and navigate your timeline
-            with the arrow keys. Press <kbd className="help-kbd">?</kbd> to see
-            all keyboard shortcuts.
-          </p>
-        </div>
-
-        {/* ── Data & privacy ──────────────────────────────────────────────── */}
-        <div className="settings-section">
-          <div className="settings-label">data &amp; privacy</div>
-          <p className="help-about-text">
-            Everything lives in your browser — milestones, photos, and settings.
-            Clearing site data will erase all your entries. Export a backup
-            anytime with <kbd className="help-kbd">E</kbd>.
-          </p>
-        </div>
-
-        {/* ── Storage ─────────────────────────────────────────────────────── */}
-        <div className="settings-section">
-          <div className="settings-label">storage</div>
-          <div className="help-storage-grid">
-            <span className="help-storage-label">indexedDB</span>
-            <span className="help-storage-value">
-              {idbEst ? `${fmtBytes(idbEst.usage)} used` : '…'}
-              {idbEst && (
-                <span className="help-storage-dim">
-                  {' '}/ {fmtBytes(idbEst.quota)} available
-                </span>
-              )}
-            </span>
-            <span className="help-storage-label">localStorage</span>
-            <span className="help-storage-value">
-              {localSize}
-              <span className="help-storage-dim"> (settings only)</span>
-            </span>
+          <div className="settings-label">contact &amp; issues</div>
+          <div className="help-links">
+            <a
+              className="help-ext-link"
+              href="mailto:support@glance-apps.com"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ExternalLinkIcon />
+              support@glance-apps.com
+            </a>
+            <a
+              className="help-ext-link"
+              href="https://github.com/krelltunez/lifeGLANCE/issues"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <ExternalLinkIcon />
+              Report an issue on GitHub
+            </a>
           </div>
         </div>
 
         {/* ── Footer ──────────────────────────────────────────────────────── */}
         <div className="help-footer">
-          <span className="help-footer-meta">
-            all data stays on your device
-          </span>
-          <span className="help-footer-meta help-footer-version">v{VERSION}</span>
+          <div className="help-footer-storage">
+            <span className="help-footer-meta">
+              Storage:&ensp;
+              <span className="help-footer-value">
+                {idbEst ? `${fmtBytes(idbEst.usage)} / ~${fmtBytes(idbEst.quota)}` : '…'}
+              </span>
+            </span>
+            <span className="help-footer-meta">
+              <span className="help-footer-value">v{VERSION}</span>
+              <span className="help-footer-dim"> · {dateStr}, {timeStr}</span>
+            </span>
+          </div>
+          <button
+            className="help-shortcuts-btn"
+            onClick={() => { onClose(); onOpenShortcuts() }}
+          >
+            <kbd className="help-kbd">?</kbd>
+            shortcuts
+          </button>
         </div>
 
       </div>

@@ -1414,7 +1414,10 @@ export default function TimelineView({ milestones, setMilestones }) {
         />
       )}
       {helpOpen && (
-        <HelpModal onClose={() => setHelpOpen(false)} />
+        <HelpModal
+          onClose={() => setHelpOpen(false)}
+          onOpenShortcuts={() => setKbdOpen(true)}
+        />
       )}
       {kbdOpen && (
         <KeyboardShortcutsModal onClose={() => setKbdOpen(false)} />
