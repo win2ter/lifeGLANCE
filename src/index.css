@@ -1610,7 +1610,95 @@ button, input, select, textarea {
 }
 
 /* ─── Help modal ───────────────────────────────────────────────────────────── */
-.help-sheet { max-width: 420px; }
+.help-sheet { max-width: 450px; }
+
+.help-header-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+.help-header-icon {
+  width: 1.35rem;
+  height: 1.35rem;
+  color: var(--amber);
+  flex-shrink: 0;
+}
+
+.help-links {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+.help-ext-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--amber);
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.help-ext-link:hover { opacity: 0.75; }
+.help-ext-icon {
+  width: 0.9rem;
+  height: 0.9rem;
+  flex-shrink: 0;
+}
+
+.help-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 0.75rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--border);
+  gap: 0.6rem;
+}
+.help-footer-storage {
+  align-self: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+.help-footer-meta {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+}
+.help-footer-value {
+  color: var(--text-dim);
+}
+.help-footer-dim {
+  opacity: 0.55;
+}
+.help-shortcuts-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: var(--font);
+  font-size: 0.58rem;
+  margin-top: 0.35rem;
+  color: var(--text-dim);
+  background: rgba(232, 224, 208, 0.06);
+  border: 1px solid rgba(232, 224, 208, 0.14);
+  border-radius: 4px;
+  padding: 0.2rem 0.4rem 0.2rem 0.3rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.help-shortcuts-btn:hover {
+  background: rgba(232, 224, 208, 0.1);
+  color: var(--text);
+}
+.help-shortcuts-btn .help-kbd {
+  font-size: 0.52rem;
+  padding: 0.1em 0.35em;
+  margin-right: 0;
+}
+
+/* ─── Keyboard shortcuts modal ─────────────────────────────────────────────── */
+.kbd-sheet { max-width: 380px; }
 
 .help-shortcuts-table {
   width: 100%;
@@ -1640,42 +1728,6 @@ button, input, select, textarea {
   font-size: 0.72rem;
   color: var(--text-dim);
   vertical-align: middle;
-}
-
-.help-note {
-  font-size: 0.72rem;
-  color: var(--text-dim);
-  line-height: 1.55;
-  margin-top: 0.4rem;
-}
-
-.help-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  padding-top: 0.75rem;
-  margin-top: 0.5rem;
-  border-top: 1px solid var(--border);
-  gap: 1rem;
-}
-.help-footer-storage {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-.help-footer-meta {
-  font-size: 0.62rem;
-  color: var(--text-muted);
-}
-.help-footer-value {
-  color: var(--text-dim);
-}
-.help-footer-dim {
-  opacity: 0.55;
-}
-.help-footer-version {
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
 /* ─── Search palette ───────────────────────────────────────────────────────── */
