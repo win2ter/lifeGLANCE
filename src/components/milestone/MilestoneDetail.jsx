@@ -83,6 +83,23 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
           <div className="detail-recurrence">↻ repeats annually</div>
         )}
 
+        {/* dayGLANCE link badges */}
+        {m.dayglance_linked && !m.dayglance_completed && (
+          <div className="detail-dg-badge">
+            <span className="detail-dg-icon">◈</span> tracked in dayGLANCE
+          </div>
+        )}
+        {m.dayglance_completed && (
+          <div className="detail-dg-badge detail-dg-badge--done">
+            <span className="detail-dg-icon">✓</span> completed in dayGLANCE
+            {m.dayglance_completed_at && (
+              <span className="detail-dg-when">
+                {' '}· {new Date(m.dayglance_completed_at).toLocaleDateString()}
+              </span>
+            )}
+          </div>
+        )}
+
         {/* Media (audio / video) */}
         {m.media_type && audioUrl && (
           <div className="detail-audio-wrap">

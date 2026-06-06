@@ -2258,3 +2258,47 @@ button, input, select, textarea {
 .timeline-zoom-wrap[style] {
   box-shadow: inset 2px 0 0 color-mix(in srgb, var(--drill-color) 40%, transparent);
 }
+
+/* ── dayGLANCE integration (Phase 5) ─────────────────────────────────────── */
+
+/* Toast variants */
+.toast-success {
+  background: #2d6a35;
+  border-left: 3px solid #4ade80;
+}
+
+/* Milestone detail — dayGLANCE link badge */
+.detail-dg-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.72rem;
+  color: var(--accent, #60a5fa);
+  margin: 0.2rem 0;
+  opacity: 0.9;
+}
+.detail-dg-badge--done {
+  color: #4ade80;
+}
+.detail-dg-icon {
+  font-size: 0.75rem;
+  line-height: 1;
+}
+.detail-dg-when {
+  opacity: 0.7;
+}
+
+/* Integration settings section */
+.settings-intents-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-top: 0.5rem;
+}
+.settings-intents-row {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.intents-test-ok  { color: #4ade80; }
+.intents-test-err { color: #f87171; }
