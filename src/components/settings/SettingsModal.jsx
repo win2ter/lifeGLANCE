@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { saveCategories } from '../../utils/colors'
 import { isMuted, setMuted } from '../../utils/audio'
+import IntegrationSettings from '../dayglance/IntegrationSettings'
 
 const TEXT_SIZES_ALL = ['small', 'normal', 'big', 'bigger']
 
@@ -222,6 +223,8 @@ export default function SettingsModal({
             .ics import supports all-day events only. Timed events are skipped — the import dialog shows a count of how many were omitted.
           </p>
         </div>
+
+        <IntegrationSettings />
       </div>
     </div>
   )

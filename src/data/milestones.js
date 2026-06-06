@@ -25,6 +25,11 @@ export function buildMilestone({
   recurrence     = null,   // null | 'annual'
   recurrence_id  = null,   // UUID shared across instances of a series
   mainTimelineVisibility = 'inherit',
+  // dayGLANCE intent linking (Phase 5)
+  dayglance_linked       = false,
+  dayglance_task_id      = null,
+  dayglance_completed    = false,
+  dayglance_completed_at = null,
 }) {
   const dateObj = date instanceof Date ? date : new Date(date)
   const today   = new Date()
@@ -45,6 +50,10 @@ export function buildMilestone({
     recurrence,
     recurrence_id,
     mainTimelineVisibility,
+    dayglance_linked,
+    dayglance_task_id,
+    dayglance_completed,
+    dayglance_completed_at,
     created_at:     now,
     updated_at:     now,
   }
@@ -97,6 +106,10 @@ export async function restoreMilestones(items) {
   await dbClearAllMedia()
   const clean = items.map(({ photo_uri: _discard, ...m }) => ({
     mainTimelineVisibility: 'inherit',   // default for backups that predate v4
+    dayglance_linked:       false,
+    dayglance_task_id:      null,
+    dayglance_completed:    false,
+    dayglance_completed_at: null,
     ...m,
     media_type: null,
     has_photo:  false,

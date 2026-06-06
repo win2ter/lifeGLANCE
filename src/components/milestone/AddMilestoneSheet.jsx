@@ -3,6 +3,7 @@ import { DEFAULT_CATEGORIES } from '../../utils/colors'
 import { buildDateFromParts } from '../../utils/dates'
 import { dbGetPhoto } from '../../data/db'
 import { getMilestoneVisibility } from '../../utils/visibility'
+import { isIntegrationEnabled } from '../../lib/intentsTransport.js'
 
 const MONTHS = [
   { v: '1',  l: 'Jan' }, { v: '2',  l: 'Feb' }, { v: '3',  l: 'Mar' },
@@ -32,9 +33,11 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
   const [mediaFile,     setMediaFile]     = useState(null)   // new File selected this session
   const [mediaRemoved,  setMediaRemoved]  = useState(false)  // user cleared existing media
   const [mediaObjectUrl, setMediaObjectUrl] = useState(null) // transient preview URL
-  const [recurrence,    setRecurrence]    = useState(false)
-  const [recEndYear,    setRecEndYear]    = useState('')
-  const [visibility,    setVisibility]    = useState(existing?.mainTimelineVisibility ?? 'inherit')
+  const [recurrence,      setRecurrence]      = useState(false)
+  const [recEndYear,      setRecEndYear]      = useState('')
+  const [visibility,      setVisibility]      = useState(existing?.mainTimelineVisibility ?? 'inherit')
+  const [trackAsDg,       setTrackAsDg]       = useState(existing?.dayglance_linked ?? false)
+  const integrationActive = isIntegrationEnabled()
   const [busy,          setBusy]          = useState(false)
   const photoRef = useRef(null)
   const mediaRef = useRef(null)
@@ -205,6 +208,12 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
         recurrenceEndYear: (!isEdit && recurrence && year.length >= 4)
           ? (recEndYear ? Number(recEndYear) : Math.max(Number(year), new Date().getFullYear()) + 3)
           : undefined,
+        trackAsDayglanceGoal: integrationActive ? trackAsDg : false,
+        // Preserve existing dayGLANCE link state in edit mode
+        dayglance_linked:       isEdit ? (existing?.dayglance_linked ?? false) : undefined,
+        dayglance_task_id:      isEdit ? (existing?.dayglance_task_id ?? null)  : undefined,
+        dayglance_completed:    isEdit ? (existing?.dayglance_completed ?? false) : undefined,
+        dayglance_completed_at: isEdit ? (existing?.dayglance_completed_at ?? null) : undefined,
       }, existing)
       onClose()
     } finally {
@@ -537,6 +546,37 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
             )}
           </div>
         )}
+
+        {/* dayGLANCE Goal tracking — shown when integration is enabled */}
+        {integrationActive && (() => {
+          // Show in edit mode for future-dated or already-linked milestones,
+          // and in create mode whenever a future year is entered.
+          const isFuture = isEdit
+            ? (existing?.direction === 'future' || existing?.dayglance_linked)
+            : (year.length >= 4 && Number(year) >= new Date().getFullYear())
+          if (!isFuture) return null
+          return (
+            <div className="sheet-field">
+              <label className="recurrence-toggle-row">
+                <span className="field-label" style={{ marginBottom: 0 }}>
+                  track as dayGLANCE Goal
+                </span>
+                <input
+                  type="checkbox"
+                  className="settings-toggle"
+                  checked={trackAsDg}
+                  onChange={e => setTrackAsDg(e.target.checked)}
+                />
+              </label>
+              {trackAsDg && (
+                <p className="settings-note" style={{ marginTop: '0.35rem' }}>
+                  A task will be created in dayGLANCE. Date changes and Goal
+                  completions sync back here via your WebDAV events directory.
+                </p>
+              )}
+            </div>
+          )
+        })()}
 
         {/* Chapter membership suggestion — create mode only */}
         {!isEdit && overlappingChapters.length > 0 && (

@@ -22,6 +22,9 @@ import ChapterSheet from '../chapter/ChapterSheet'
 import { dbPutMedia, dbPutPhoto, dbDeletePhoto, dbGetPhoto, dbPut } from '../../data/db'
 import { parseIcs }      from '../../utils/icsParser'
 import * as audio from '../../utils/audio'
+import { useIntentPoller } from '../../hooks/useIntentPoller.js'
+import { emitCreateForMilestone, emitRescheduledNotify, isIntegrationEnabled } from '../../lib/intentsTransport.js'
+import { NOTIFY_EVENTS, SOURCE_APP_DAYGLANCE } from '../../lib/intents.js'
 
 const ZOOM_RANK = { decades: 5, '30yr': 4, years: 3, months: 2, weeks: 1, custom: 3.5 }
 
@@ -158,6 +161,83 @@ export default function TimelineView({ milestones, setMilestones }) {
     listChapters().then(setChapters).catch(console.error)
   }, [])
 
+  // ── dayGLANCE intents integration (Phase 5) ───────────────────────────────────
+
+  // Stable ref so poller callbacks always see current milestones without re-registering.
+  const milestonesRef = useRef(milestones)
+  useEffect(() => { milestonesRef.current = milestones }, [milestones])
+
+  // Inbound: dayGLANCE pushed a new Goal → create a mirrored milestone here.
+  const handleInboundCreate = useCallback(async (payload) => {
+    if (!payload.title) return
+    try {
+      const m = await addMilestone({
+        title:            payload.title,
+        date:             payload.due ? new Date(payload.due) : new Date(),
+        date_precision:   'day',
+        note:             payload.notes ?? '',
+        dayglance_linked: true,
+        // source_entity_id is the dayGLANCE task id for this goal
+        dayglance_task_id: payload.source_entity_id ?? null,
+      })
+      setMilestones(prev => {
+        const next = [...prev, m]
+        pushHistory(next)
+        return next
+      })
+      showToast(`dayGLANCE Goal added: "${m.title}"`, 'success')
+    } catch (err) {
+      console.error('[intents] inbound create failed:', err)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Inbound: dayGLANCE notifying of a state change on one of our milestones.
+  const handleInboundNotify = useCallback(async (payload) => {
+    const { event, source_entity_id, due, previous_due, completed_at, title } = payload
+    const current = milestonesRef.current.find(m => m.id === source_entity_id)
+    if (!current) return
+
+    try {
+      if (event === NOTIFY_EVENTS.COMPLETED) {
+        const updated = await updateMilestone(current.id, {
+          dayglance_completed:    true,
+          dayglance_completed_at: completed_at ?? new Date().toISOString(),
+        }, current)
+        setMilestones(prev => prev.map(m => m.id === current.id ? updated : m))
+        showToast(`Goal completed in dayGLANCE: "${current.title}"`, 'success')
+
+      } else if (event === NOTIFY_EVENTS.RESCHEDULED && due) {
+        const updated = await updateMilestone(current.id, { date: new Date(due) }, current)
+        setMilestones(prev => prev.map(m => m.id === current.id ? updated : m))
+
+      } else if (event === NOTIFY_EVENTS.UPDATED && title && title !== current.title) {
+        const updated = await updateMilestone(current.id, { title }, current)
+        setMilestones(prev => prev.map(m => m.id === current.id ? updated : m))
+
+      } else if (event === NOTIFY_EVENTS.DELETED) {
+        showToast(`dayGLANCE Goal deleted — "${current.title}" still exists here.`, 'info')
+
+      } else if (event === NOTIFY_EVENTS.UNCOMPLETED) {
+        const updated = await updateMilestone(current.id, {
+          dayglance_completed:    false,
+          dayglance_completed_at: null,
+        }, current)
+        setMilestones(prev => prev.map(m => m.id === current.id ? updated : m))
+      }
+    } catch (err) {
+      console.error('[intents] inbound notify handler failed:', err)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const intentsConfig = isIntegrationEnabled()
+    ? JSON.parse(localStorage.getItem('lifeglance-intents-config') || '{}')
+    : null
+
+  useIntentPoller({
+    onInboundCreate:  handleInboundCreate,
+    onInboundNotify:  handleInboundNotify,
+    intervalMin:      intentsConfig?.pollIntervalMin ?? 2,
+  })
 
   // Restrict text size: big/bigger cards overflow the axis on short screens.
   useEffect(() => {
@@ -588,7 +668,8 @@ export default function TimelineView({ milestones, setMilestones }) {
     // photoFile / photoRemoved / mediaFile / mediaRemoved are transfer-only fields
     // from the form — strip them before passing to the data layer and handle blob
     // persistence here.
-    const { mediaFile, mediaRemoved, photoFile, photoRemoved, chapterIds, closeChapterIds, ...milestoneData } = data
+    const { mediaFile, mediaRemoved, photoFile, photoRemoved, chapterIds, closeChapterIds,
+            trackAsDayglanceGoal, ...milestoneData } = data
     const newMediaType = mediaFile
       ? (mediaFile.type.startsWith('video/') ? 'video' : 'audio')
       : null
@@ -609,6 +690,12 @@ export default function TimelineView({ milestones, setMilestones }) {
         pushHistory(newMs)
         setMilestones(newMs)
         audio.playEditSave()
+        // Emit rescheduled notify if this milestone is linked and the date changed.
+        if (updated.dayglance_linked && existing.date !== updated.date) {
+          emitRescheduledNotify(updated, existing.date).catch(err =>
+            console.warn('[intents] rescheduled emit failed:', err)
+          )
+        }
       } else if (milestoneData.recurrence === 'annual') {
         // Generate one instance per year from base year to chosen end year (max +99)
         const rid      = uid()
@@ -640,13 +727,25 @@ export default function TimelineView({ milestones, setMilestones }) {
         setNewlyAddedId(created[0].id)
         audio.playChime()
       } else {
-        const m = await addMilestone({ ...milestoneData, media_type: newMediaType, has_photo: !!photoFile })
+        const dgLinked = !!trackAsDayglanceGoal
+        const m = await addMilestone({
+          ...milestoneData,
+          media_type:       newMediaType,
+          has_photo:        !!photoFile,
+          dayglance_linked: dgLinked,
+        })
         if (mediaFile) await dbPutMedia(m.id, mediaFile, mediaFile.type)
         if (photoFile) await dbPutPhoto(m.id, photoFile, photoFile.type)
         const newMs = [...milestones, m]
         pushHistory(newMs)
         setMilestones(newMs)
         setNewlyAddedId(m.id)
+        // Emit outbound create to dayGLANCE if the user checked "track as dayGLANCE Goal".
+        if (dgLinked) {
+          emitCreateForMilestone(m).catch(err =>
+            console.warn('[intents] create emit failed:', err)
+          )
+        }
         // Add to any chapters the user selected in the form, and close ongoing chapters if requested.
         if (chapterIds?.length || closeChapterIds?.length) {
           const updated = [...chapters]
