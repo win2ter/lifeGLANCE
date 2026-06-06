@@ -42,7 +42,7 @@ export default function IntegrationSettings() {
       })
       if (res.ok || res.status === 207) {
         setTestStatus('ok')
-        setTestMsg('Connected — events directory is reachable.')
+        setTestMsg('Connected - events directory is reachable.')
       } else if (res.status === 404) {
         setTestStatus('error')
         setTestMsg(`Events directory not found (404). Create it first: ${cfg.eventsPath}`)
