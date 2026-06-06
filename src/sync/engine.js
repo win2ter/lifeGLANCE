@@ -6,12 +6,17 @@ let engine = null;
 export const initSyncEngine = ({ milestonesRef, chaptersRef, setMilestones, setChapters,
   setSyncStatus, setSyncError, setSyncHalted, setLastSynced, setShowPassphraseModal }) => {
 
+  const savedSyncConfig = (() => {
+    try { return JSON.parse(localStorage.getItem('lifeglance-cloud-sync-config') || 'null') } catch { return null }
+  })()
+  const appFolderName = savedSyncConfig?.folder ?? 'GLANCE/lifeglance'
+
   engine = createSyncEngine({
     storageKeyPrefix: 'lifeglance',
     cryptoDBName: 'lifeglance-crypto',
     autoBackupDBName: 'lifeglance-auto-backups',
     syncFilename: 'lifeglance-sync.json',
-    appFolderName: 'lifeglance',
+    appFolderName,
     backupFilenamePrefix: 'lifeglance-backup-',
     appId: 'lifeglance',
     appName: 'lifeGLANCE',

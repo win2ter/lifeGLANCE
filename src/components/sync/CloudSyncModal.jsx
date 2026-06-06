@@ -37,7 +37,7 @@ export default function CloudSyncModal({ syncStatus, syncError, syncHalted, last
   const [url,         setUrl]         = useState(existingConfig?.url ?? '')
   const [username,    setUsername]    = useState(existingConfig?.username ?? '')
   const [password,    setPassword]    = useState(existingConfig?.password ?? '')
-  const [folder,      setFolder]      = useState(existingConfig?.folder ?? 'lifeglance')
+  const [folder,      setFolder]      = useState(existingConfig?.folder ?? 'GLANCE/lifeglance')
   const [encrypt,     setEncrypt]     = useState(existingConfig?.encrypt ?? false)
   const [passphrase,  setPassphrase]  = useState('')
   const [confirmPass, setConfirmPass] = useState('')
@@ -198,7 +198,7 @@ export default function CloudSyncModal({ syncStatus, syncError, syncHalted, last
           <input
             className="input"
             type="text"
-            placeholder="lifeglance"
+            placeholder="GLANCE/lifeglance"
             value={folder}
             onChange={e => setFolder(e.target.value)}
             style={{ width: '100%' }}
