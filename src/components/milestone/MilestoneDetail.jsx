@@ -41,9 +41,15 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
         </div>
 
         {/* Photo */}
-        {photoUrl && (
+        {m.has_photo && photoUrl && (
           <div className="detail-photo-wrap">
             <img src={photoUrl} alt={m.title} className="detail-photo" />
+          </div>
+        )}
+        {m.has_photo && !photoUrl && (
+          <div className="detail-photo-wrap detail-media-unavailable">
+            <span className="detail-media-unavailable-icon">&#128247;</span>
+            <span className="detail-media-unavailable-label">Photo synced from another device</span>
           </div>
         )}
 
@@ -78,11 +84,19 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
         )}
 
         {/* Media (audio / video) */}
-        {audioUrl && (
+        {m.media_type && audioUrl && (
           <div className="detail-audio-wrap">
             {m.media_type === 'video'
               ? <video controls src={audioUrl} className="detail-video" />
               : <audio controls src={audioUrl} className="detail-audio" />}
+          </div>
+        )}
+        {m.media_type && !audioUrl && (
+          <div className="detail-audio-wrap detail-media-unavailable">
+            <span className="detail-media-unavailable-icon">
+              {m.media_type === 'video' ? '&#127916;' : '&#127911;'}
+            </span>
+            <span className="detail-media-unavailable-label">Media synced from another device</span>
           </div>
         )}
 

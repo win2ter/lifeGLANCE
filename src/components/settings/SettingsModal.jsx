@@ -22,6 +22,8 @@ export default function SettingsModal({
   birthday, onBirthdayChange,
   milestones,
   onExportImage, onSaveBackup, onRestoreFile, onImportIcsFile,
+  onOpenCloudSync,
+  onOpenAutoBackup,
   onClose,
   ultraCompact = false,
 }) {
@@ -184,6 +186,25 @@ export default function SettingsModal({
             />
           </div>
         </div>
+
+        {/* ── Cloud sync ────────────────────────────────────────────────── */}
+        {(onOpenCloudSync || onOpenAutoBackup) && (
+          <div className="settings-section">
+            <div className="settings-label">cloud</div>
+            <div className="settings-backup-row">
+              {onOpenCloudSync && (
+                <button className="btn"
+                  style={{ fontSize: '0.75rem', padding: '0.4rem 0.85rem' }}
+                  onClick={() => { onClose(); onOpenCloudSync() }}>cloud sync</button>
+              )}
+              {onOpenAutoBackup && (
+                <button className="btn"
+                  style={{ fontSize: '0.75rem', padding: '0.4rem 0.85rem' }}
+                  onClick={() => { onClose(); onOpenAutoBackup() }}>auto-backup</button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── Data / backup ─────────────────────────────────────────────── */}
         <div className="settings-section">

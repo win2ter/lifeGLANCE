@@ -18,7 +18,12 @@ import { loadCategories } from '../../utils/colors'
 import { getMilestoneVisibility, precomputeEndpoints } from '../../utils/visibility'
 import { addMilestone, updateMilestone, deleteMilestone, restoreMilestones, uid } from '../../data/milestones'
 import { listChapters, restoreChapters, createChapter, updateChapter, deleteChapter } from '../../data/chapters'
+import { writeMilestoneTombstone } from '../../sync/tombstones'
+import { getSyncEngine } from '../../sync/engine'
 import ChapterSheet from '../chapter/ChapterSheet'
+import CloudSyncModal from '../sync/CloudSyncModal'
+import SyncPassphraseModal from '../sync/SyncPassphraseModal'
+import AutoBackupModal from '../sync/AutoBackupModal'
 import { dbPutMedia, dbPutPhoto, dbDeletePhoto, dbGetPhoto, dbPut } from '../../data/db'
 import { parseIcs }      from '../../utils/icsParser'
 import * as audio from '../../utils/audio'
@@ -34,7 +39,7 @@ const TEXT_SIZES = {
 
 const ZOOM_ANIM_MS = 420
 
-export default function TimelineView({ milestones, setMilestones }) {
+export default function TimelineView({ milestones, setMilestones, chapters, setChapters, syncStatus, syncError, syncHalted, lastSynced, onOpenCloudSync }) {
   const [zoom,          setZoom]          = useState('years')
   const [zoomAnim,      setZoomAnim]      = useState('')
   const [filter,        setFilter]        = useState(new Set())
@@ -85,7 +90,6 @@ export default function TimelineView({ milestones, setMilestones }) {
   )
   const [canUndo,       setCanUndo]       = useState(false)
   const [canRedo,       setCanRedo]       = useState(false)
-  const [chapters,         setChapters]         = useState([])
   const [chapterSheetOpen, setChapterSheetOpen] = useState(false)
   const [editChapter,      setEditChapter]      = useState(null)
   const [drilledChapter,   setDrilledChapter]   = useState(null)
@@ -96,6 +100,8 @@ export default function TimelineView({ milestones, setMilestones }) {
   const [icsImport,     setIcsImport]     = useState(null)  // { candidates, timedCount } | null
   const [toast,         setToast]         = useState(null)  // { message, type } | null
   const [mediaConfirm,  setMediaConfirm]  = useState(null)  // { data, existing, fileSize, remaining } | null
+  const [cloudSyncOpen,   setCloudSyncOpen]   = useState(false)
+  const [autoBackupOpen,  setAutoBackupOpen]  = useState(false)
 
   const timelineRef    = useRef(null)
   const zoomWrapRef    = useRef(null)
@@ -153,11 +159,6 @@ export default function TimelineView({ milestones, setMilestones }) {
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
   }, [])
-
-  useEffect(() => {
-    listChapters().then(setChapters).catch(console.error)
-  }, [])
-
 
   // Restrict text size: big/bigger cards overflow the axis on short screens.
   useEffect(() => {
@@ -719,6 +720,7 @@ export default function TimelineView({ milestones, setMilestones }) {
       const newMs = milestones.filter(m => m.id !== id)
       pushHistory(newMs)
       setMilestones(newMs)
+      getSyncEngine()?.upload()
     } catch (err) {
       console.error('Delete failed:', err)
       showToast('Failed to delete milestone. Please try again.')
@@ -728,10 +730,14 @@ export default function TimelineView({ milestones, setMilestones }) {
   async function handleDeleteSeries(recurrence_id) {
     try {
       const toDelete = milestones.filter(m => m.recurrence_id === recurrence_id)
-      for (const m of toDelete) await deleteMilestone(m.id)
+      for (const m of toDelete) {
+        writeMilestoneTombstone(m.id)
+        await deleteMilestone(m.id)
+      }
       const newMs = milestones.filter(m => m.recurrence_id !== recurrence_id)
       pushHistory(newMs)
       setMilestones(newMs)
+      getSyncEngine()?.upload()
     } catch (err) {
       console.error('Delete series failed:', err)
       showToast('Failed to delete recurring series. Please try again.')
@@ -794,6 +800,7 @@ export default function TimelineView({ milestones, setMilestones }) {
     }
     setChapters(prev => prev.filter(c => c.id !== id))
     if (drilledChapter?.id === id) exitDrillIn(true)
+    getSyncEngine()?.upload()
   }
 
   // ── Drill-in (Phase 5) ───────────────────────────────────────────────────────
@@ -1230,13 +1237,36 @@ export default function TimelineView({ milestones, setMilestones }) {
           )}
         </div>
 
-        {/* Right: stats + settings + help */}
+        {/* Right: stats + settings + help + sync indicator */}
         <div className="header-right">
           <button className="action-link" onClick={() => setSummaryOpen(true)}>stats</button>
           <span className="action-sep">|</span>
           <button className="action-link" onClick={() => setSettingsOpen(true)}>settings</button>
           <span className="action-sep">|</span>
           <button className="action-link" onClick={() => setHelpOpen(true)}>?</button>
+          {onOpenCloudSync && (
+            <>
+              <span className="action-sep">|</span>
+              <button
+                className="action-link sync-status-btn"
+                onClick={onOpenCloudSync}
+                title={syncHalted ? 'Sync error (click to configure)' : syncStatus === 'syncing' ? 'Syncing...' : syncError ? 'Sync error' : 'Cloud sync'}
+              >
+                <span
+                  className="sync-dot"
+                  style={{
+                    display: 'inline-block',
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    marginRight: '4px',
+                    background: syncHalted || syncError ? '#E85D75' : syncStatus === 'syncing' ? '#D4A800' : '#34D399',
+                  }}
+                />
+                sync
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -1453,6 +1483,8 @@ export default function TimelineView({ milestones, setMilestones }) {
           onSaveBackup={handleSaveBackup}
           onRestoreFile={handleRestoreFile}
           onImportIcsFile={handleImportIcsFile}
+          onOpenCloudSync={onOpenCloudSync ? () => { setSettingsOpen(false); onOpenCloudSync() } : undefined}
+          onOpenAutoBackup={() => { setSettingsOpen(false); setAutoBackupOpen(true) }}
           onClose={() => setSettingsOpen(false)}
         />
       )}
@@ -1490,6 +1522,20 @@ export default function TimelineView({ milestones, setMilestones }) {
         <div className={`toast toast-${toast.type}`} role="alert" onClick={() => setToast(null)}>
           {toast.message}
         </div>
+      )}
+      {cloudSyncOpen && (
+        <CloudSyncModal
+          syncStatus={syncStatus}
+          syncError={syncError}
+          syncHalted={syncHalted}
+          lastSynced={lastSynced}
+          onClose={() => setCloudSyncOpen(false)}
+        />
+      )}
+      {autoBackupOpen && (
+        <AutoBackupModal
+          onClose={() => setAutoBackupOpen(false)}
+        />
       )}
     </div>
   )

@@ -1,5 +1,6 @@
 import { dbGetAll, dbAdd, dbPut, dbDelete, dbClearAllMedia } from './db'
 import { categoryColor } from '../utils/colors'
+import { writeMilestoneTombstone } from '../sync/tombstones'
 
 export function uid() {
   if (typeof crypto.randomUUID === 'function') {
@@ -85,6 +86,7 @@ export async function updateMilestone(id, updates, existing) {
 }
 
 export async function deleteMilestone(id) {
+  writeMilestoneTombstone(id)
   await dbDelete(id)
 }
 

@@ -1,5 +1,6 @@
 import { dbGetAllChapters, dbGetChapter, dbAddChapter, dbPutChapter, dbDeleteChapter } from './db'
 import { uid } from './milestones'
+import { writeChapterTombstone } from '../sync/tombstones'
 
 // Valid color values are the same hex strings used for milestone categories and
 // the settings palette (COLOR_PALETTE in SettingsModal).  No runtime validation
@@ -56,6 +57,7 @@ export async function updateChapter(id, updates, existing) {
 }
 
 export async function deleteChapter(id) {
+  writeChapterTombstone(id)
   await dbDeleteChapter(id)
 }
 
