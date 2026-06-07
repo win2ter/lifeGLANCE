@@ -13,16 +13,18 @@ export const buildPayload = async (milestonesRef, chaptersRef) => {
   const [idbMilestones, idbChapters] = await Promise.all([dbGetAll(), dbGetAllChapters()])
   const milestones = (milestonesRef?.current?.length > 0) ? milestonesRef.current : idbMilestones
   const chapters   = (chaptersRef?.current?.length   > 0) ? chaptersRef.current   : idbChapters
-  return {
+  const payload = {
     lives: {
       default: {
-        milestones,  // has_photo / media_type flags included; blobs are NOT in milestone objects
+        milestones,
         chapters,
         milestoneTombstones: getMilestoneTombstones(),
         chapterTombstones: getChapterTombstones(),
       }
     }
   };
+  console.log('[sync:build] milestones:', milestones.length, 'idb:', idbMilestones.length, 'ref:', milestonesRef?.current?.length ?? 'n/a')
+  return payload;
 };
 
 // buildBackupPayload — timer-safe. Must not read React state.
@@ -61,6 +63,8 @@ export const makeApplyPayload = (setMilestones, setChapters) =>
     const milestoneIdsToDelete = currentMilestones
       .map(m => m.id)
       .filter(id => !mergedMilestoneIds.has(id));
+
+    console.log('[sync:apply] milestones in:', milestones.length, 'current IDB:', currentMilestones.length, 'to delete:', milestoneIdsToDelete.length, 'tombstones:', Object.keys(milestoneTombstones).length)
 
     // Write merged milestones
     for (const m of milestones) await dbPut(m);
