@@ -43,12 +43,10 @@ export const makeApplyPayload = (setMilestones, setChapters) =>
     const life = data?.lives?.default;
     if (!life) return;
 
-    const {
-      milestones = [],
-      chapters = [],
-      milestoneTombstones = {},
-      chapterTombstones = {},
-    } = life;
+      const milestones          = Array.isArray(life.milestones) ? life.milestones : []
+    const chapters            = Array.isArray(life.chapters)   ? life.chapters   : []
+    const milestoneTombstones = life.milestoneTombstones && typeof life.milestoneTombstones === 'object' ? life.milestoneTombstones : {}
+    const chapterTombstones   = life.chapterTombstones   && typeof life.chapterTombstones   === 'object' ? life.chapterTombstones   : {}
 
     // Persist tombstones
     localStorage.setItem('lifeglance-milestone-tombstones', JSON.stringify(milestoneTombstones));
@@ -87,10 +85,10 @@ export const mergePayloads = (local, remote) => {
   const localLife = local?.lives?.default ?? {};
   const remoteLife = remote?.lives?.default ?? {};
 
-  const lm = localLife.milestones ?? [];
-  const rm = remoteLife.milestones ?? [];
-  const lc = localLife.chapters ?? [];
-  const rc = remoteLife.chapters ?? [];
+  const lm = Array.isArray(localLife.milestones)  ? localLife.milestones  : []
+  const rm = Array.isArray(remoteLife.milestones) ? remoteLife.milestones : []
+  const lc = Array.isArray(localLife.chapters)    ? localLife.chapters    : []
+  const rc = Array.isArray(remoteLife.chapters)   ? remoteLife.chapters   : []
   const lmt = localLife.milestoneTombstones ?? {};
   const rmt = remoteLife.milestoneTombstones ?? {};
   const lct = localLife.chapterTombstones ?? {};
