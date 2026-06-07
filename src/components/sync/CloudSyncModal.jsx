@@ -76,7 +76,8 @@ export default function CloudSyncModal({ syncStatus, syncError, syncHalted, last
     }
     setSaving(true)
     try {
-      const config = { provider, url, username, password, folder, encrypt }
+      const config = { provider, url, username, password, folder, encrypt,
+        webdavUrl: url, nextcloudUrl: url, appPassword: password }
       engine?.setConfig(config)
       if (encrypt && passphrase) {
         const { setupEncryptionKey } = await import('@glance-apps/sync')
@@ -85,6 +86,7 @@ export default function CloudSyncModal({ syncStatus, syncError, syncHalted, last
       await engine?.sync()
       onClose()
     } catch (err) {
+      console.error('[sync] save failed:', err)
       setTestResult({ ok: false, message: `Save failed: ${err.message}` })
     } finally {
       setSaving(false)
