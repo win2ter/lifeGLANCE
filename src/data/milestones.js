@@ -1,5 +1,6 @@
 import { dbGetAll, dbAdd, dbPut, dbDelete, dbClearAllMedia } from './db'
 import { categoryColor } from '../utils/colors'
+import { writeMilestoneTombstone } from '../sync/tombstones'
 
 export function uid() {
   if (typeof crypto.randomUUID === 'function') {
@@ -13,6 +14,7 @@ export function uid() {
 }
 
 export function buildMilestone({
+  id,
   title,
   date,           // Date object or ISO string
   date_precision = 'month',
@@ -25,13 +27,18 @@ export function buildMilestone({
   recurrence     = null,   // null | 'annual'
   recurrence_id  = null,   // UUID shared across instances of a series
   mainTimelineVisibility = 'inherit',
+  // dayGLANCE intent linking (Phase 5)
+  dayglance_linked       = false,
+  dayglance_task_id      = null,
+  dayglance_completed    = false,
+  dayglance_completed_at = null,
 }) {
   const dateObj = date instanceof Date ? date : new Date(date)
   const today   = new Date()
   const now     = new Date().toISOString()
 
   return {
-    id:             uid(),
+    id:             id ?? uid(),
     title:          title.trim(),
     date:           dateObj.toISOString(),
     date_precision,
@@ -45,6 +52,10 @@ export function buildMilestone({
     recurrence,
     recurrence_id,
     mainTimelineVisibility,
+    dayglance_linked,
+    dayglance_task_id,
+    dayglance_completed,
+    dayglance_completed_at,
     created_at:     now,
     updated_at:     now,
   }
@@ -85,6 +96,7 @@ export async function updateMilestone(id, updates, existing) {
 }
 
 export async function deleteMilestone(id) {
+  writeMilestoneTombstone(id)
   await dbDelete(id)
 }
 
@@ -97,6 +109,10 @@ export async function restoreMilestones(items) {
   await dbClearAllMedia()
   const clean = items.map(({ photo_uri: _discard, ...m }) => ({
     mainTimelineVisibility: 'inherit',   // default for backups that predate v4
+    dayglance_linked:       false,
+    dayglance_task_id:      null,
+    dayglance_completed:    false,
+    dayglance_completed_at: null,
     ...m,
     media_type: null,
     has_photo:  false,

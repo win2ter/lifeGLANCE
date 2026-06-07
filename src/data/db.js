@@ -1,5 +1,5 @@
 const DB_NAME    = 'lifeglance'
-const DB_VERSION = 5          // v5: rename eras store to chapters
+const DB_VERSION = 6          // v6: dayGLANCE intent linking fields on milestones
 const STORE      = 'milestones'
 const CHAPTERS   = 'chapters'
 const MEDIA      = 'media'
@@ -105,6 +105,31 @@ export function initDB() {
             dest.put(c.value)
             c.continue()
           }
+        }
+      }
+
+      // v6 — dayGLANCE intent linking fields on milestones
+      if (e.oldVersion < 6) {
+        const s = e.target.transaction.objectStore(STORE)
+        let migratedCount = 0
+        s.openCursor().onsuccess = ev => {
+          const c = ev.target.result
+          if (!c) {
+            console.log(`[lifeGLANCE v6 migration] dayGLANCE fields added to ${migratedCount} milestone(s)`)
+            return
+          }
+          const rec = c.value
+          if (!('dayglance_linked' in rec)) {
+            c.update({
+              ...rec,
+              dayglance_linked:       false,
+              dayglance_task_id:      null,
+              dayglance_completed:    false,
+              dayglance_completed_at: null,
+            })
+            migratedCount++
+          }
+          c.continue()
         }
       }
     }

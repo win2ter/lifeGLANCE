@@ -18,10 +18,20 @@ import { loadCategories } from '../../utils/colors'
 import { getMilestoneVisibility, precomputeEndpoints } from '../../utils/visibility'
 import { addMilestone, updateMilestone, deleteMilestone, restoreMilestones, uid } from '../../data/milestones'
 import { listChapters, restoreChapters, createChapter, updateChapter, deleteChapter } from '../../data/chapters'
+import { writeMilestoneTombstone } from '../../sync/tombstones'
+import { getSyncEngine } from '../../sync/engine'
 import ChapterSheet from '../chapter/ChapterSheet'
+import CloudSyncModal from '../sync/CloudSyncModal'
+import SyncPassphraseModal from '../sync/SyncPassphraseModal'
+import AutoBackupModal from '../sync/AutoBackupModal'
 import { dbPutMedia, dbPutPhoto, dbDeletePhoto, dbGetPhoto, dbPut } from '../../data/db'
 import { parseIcs }      from '../../utils/icsParser'
 import * as audio from '../../utils/audio'
+import { useIntentPoller } from '../../hooks/useIntentPoller.js'
+import { emitCreateForMilestone, emitRescheduledNotify, emitStateNotify, isIntegrationEnabled } from '../../lib/intentsTransport.js'
+import { appendActivityEntry } from '../../lib/intentsActivityLog.js'
+import ActivityLogModal from '../dayglance/ActivityLogModal.jsx'
+import { EVENTS } from '@glance-apps/intents'
 
 const ZOOM_RANK = { decades: 5, '30yr': 4, years: 3, months: 2, weeks: 1, custom: 3.5 }
 
@@ -34,7 +44,7 @@ const TEXT_SIZES = {
 
 const ZOOM_ANIM_MS = 420
 
-export default function TimelineView({ milestones, setMilestones }) {
+export default function TimelineView({ milestones, setMilestones, chapters, setChapters, syncStatus, syncError, syncHalted, lastSynced, onOpenCloudSync }) {
   const [zoom,          setZoom]          = useState('years')
   const [zoomAnim,      setZoomAnim]      = useState('')
   const [filter,        setFilter]        = useState(new Set())
@@ -85,17 +95,19 @@ export default function TimelineView({ milestones, setMilestones }) {
   )
   const [canUndo,       setCanUndo]       = useState(false)
   const [canRedo,       setCanRedo]       = useState(false)
-  const [chapters,         setChapters]         = useState([])
   const [chapterSheetOpen, setChapterSheetOpen] = useState(false)
   const [editChapter,      setEditChapter]      = useState(null)
   const [drilledChapter,   setDrilledChapter]   = useState(null)
   const predrillRef        = useRef(null) // { zoom, customYears, panMs } — ref avoids stale-closure issues
   const [newlyAddedId,     setNewlyAddedId]     = useState(null)
-  const [summaryOpen,   setSummaryOpen]   = useState(false)
-  const [onThisDayOpen, setOnThisDayOpen] = useState(false)
+  const [summaryOpen,      setSummaryOpen]      = useState(false)
+  const [onThisDayOpen,    setOnThisDayOpen]    = useState(false)
+  const [activityLogOpen,  setActivityLogOpen]  = useState(false)
   const [icsImport,     setIcsImport]     = useState(null)  // { candidates, timedCount } | null
   const [toast,         setToast]         = useState(null)  // { message, type } | null
   const [mediaConfirm,  setMediaConfirm]  = useState(null)  // { data, existing, fileSize, remaining } | null
+  const [cloudSyncOpen,   setCloudSyncOpen]   = useState(false)
+  const [autoBackupOpen,  setAutoBackupOpen]  = useState(false)
 
   const timelineRef    = useRef(null)
   const zoomWrapRef    = useRef(null)
@@ -154,10 +166,86 @@ export default function TimelineView({ milestones, setMilestones }) {
     return () => mq.removeEventListener('change', handler)
   }, [])
 
-  useEffect(() => {
-    listChapters().then(setChapters).catch(console.error)
-  }, [])
+  // ── dayGLANCE intents integration (Phase 5) ───────────────────────────────────
 
+  // Stable ref so poller callbacks always see current milestones without re-registering.
+  const milestonesRef = useRef(milestones)
+  useEffect(() => { milestonesRef.current = milestones }, [milestones])
+
+  // Inbound: dayGLANCE pushed a new Goal → create a mirrored milestone here.
+  const handleInboundCreate = useCallback(async (payload, event_id) => {
+    if (!payload.title) return
+    try {
+      if (event_id && milestonesRef.current.some(m => m.id === event_id)) return
+      const m = await addMilestone({
+        id:               event_id,
+        title:            payload.title,
+        date:             payload.due ? new Date(payload.due) : new Date(),
+        date_precision:   'day',
+        note:             payload.notes ?? '',
+        dayglance_linked: true,
+        // source_entity_id is the dayGLANCE task id for this goal
+        dayglance_task_id: payload.source_entity_id ?? null,
+      })
+      setMilestones(prev => {
+        const next = [...prev, m]
+        pushHistory(next)
+        return next
+      })
+      showToast(`dayGLANCE Goal added: "${m.title}"`, 'success')
+    } catch (err) {
+      console.error('[intents] inbound create failed:', err)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Inbound: dayGLANCE notifying of a state change on one of our milestones.
+  const handleInboundNotify = useCallback(async (payload) => {
+    const { event, source_entity_id, due, previous_due, completed_at, title } = payload
+    const current = milestonesRef.current.find(m => m.id === source_entity_id)
+    if (!current) return
+
+    try {
+      if (event === EVENTS.COMPLETED) {
+        const updated = await updateMilestone(current.id, {
+          dayglance_completed:    true,
+          dayglance_completed_at: completed_at ?? new Date().toISOString(),
+        }, current)
+        setMilestones(prev => prev.map(m => m.id === current.id ? updated : m))
+        showToast(`Goal completed in dayGLANCE: "${current.title}"`, 'success')
+
+      } else if (event === EVENTS.RESCHEDULED && due) {
+        const updated = await updateMilestone(current.id, { date: new Date(due) }, current)
+        setMilestones(prev => prev.map(m => m.id === current.id ? updated : m))
+
+      } else if (event === EVENTS.UPDATED && title && title !== current.title) {
+        const updated = await updateMilestone(current.id, { title }, current)
+        setMilestones(prev => prev.map(m => m.id === current.id ? updated : m))
+
+      } else if (event === EVENTS.DELETED) {
+        showToast(`dayGLANCE Goal deleted — "${current.title}" still exists here.`, 'info')
+
+      } else if (event === EVENTS.UNCOMPLETED) {
+        const updated = await updateMilestone(current.id, {
+          dayglance_completed:    false,
+          dayglance_completed_at: null,
+        }, current)
+        setMilestones(prev => prev.map(m => m.id === current.id ? updated : m))
+      }
+    } catch (err) {
+      console.error('[intents] inbound notify handler failed:', err)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const intentsConfig = isIntegrationEnabled()
+    ? JSON.parse(localStorage.getItem('lifeglance-intents-config') || '{}')
+    : null
+
+  useIntentPoller({
+    onInboundCreate:  handleInboundCreate,
+    onInboundNotify:  handleInboundNotify,
+    onActivityEntry:  appendActivityEntry,
+    intervalMin:      intentsConfig?.pollIntervalMin ?? 2,
+  })
 
   // Restrict text size: big/bigger cards overflow the axis on short screens.
   useEffect(() => {
@@ -385,7 +473,7 @@ export default function TimelineView({ milestones, setMilestones }) {
   const keyStateRef = useRef(null)
   keyStateRef.current = {
     pastIdx, futureIdx, past, future, zoom,
-    addOpen, detail, settingsOpen, helpOpen, kbdOpen, searchOpen, chapterSheetOpen, drilledChapter,
+    addOpen, detail, settingsOpen, helpOpen, kbdOpen, searchOpen, chapterSheetOpen, drilledChapter, activityLogOpen,
     handlePastNav, handleFutureNav, handleJumpToToday, handleViewMode, closeSheet,
     handleUndo, handleRedo, canUndo, canRedo,
     clustering, setClustering,
@@ -490,6 +578,11 @@ export default function TimelineView({ milestones, setMilestones }) {
           s.handleViewMode('future')
           break
         }
+        case 'l':
+        case 'L':
+          if (s.addOpen || !!s.detail || s.settingsOpen || s.helpOpen || s.searchOpen) break
+          if (isIntegrationEnabled()) setActivityLogOpen(v => !v)
+          break
         case '/': {
           e.preventDefault() // prevent browser Quick Find (Firefox etc.) regardless
           if (s.addOpen || !!s.detail || s.settingsOpen || s.helpOpen) break
@@ -559,6 +652,7 @@ export default function TimelineView({ milestones, setMilestones }) {
           if (s.helpOpen)              { setHelpOpen(false); break }
           if (s.kbdOpen)               { setKbdOpen(false); break }
           if (s.searchOpen)            { setSearchOpen(false); break }
+          if (s.activityLogOpen)        { setActivityLogOpen(false); break }
           if (anyDrillIn)              { s.exitDrillIn(); break }
           break
         }
@@ -588,7 +682,8 @@ export default function TimelineView({ milestones, setMilestones }) {
     // photoFile / photoRemoved / mediaFile / mediaRemoved are transfer-only fields
     // from the form — strip them before passing to the data layer and handle blob
     // persistence here.
-    const { mediaFile, mediaRemoved, photoFile, photoRemoved, chapterIds, closeChapterIds, ...milestoneData } = data
+    const { mediaFile, mediaRemoved, photoFile, photoRemoved, chapterIds, closeChapterIds,
+            trackAsDayglanceGoal, ...milestoneData } = data
     const newMediaType = mediaFile
       ? (mediaFile.type.startsWith('video/') ? 'video' : 'audio')
       : null
@@ -609,6 +704,24 @@ export default function TimelineView({ milestones, setMilestones }) {
         pushHistory(newMs)
         setMilestones(newMs)
         audio.playEditSave()
+        // Emit create if the user just enabled dayGLANCE tracking for the first time.
+        if (updated.dayglance_linked && !existing.dayglance_linked) {
+          emitCreateForMilestone(updated).then(() =>
+            appendActivityEntry({ type: 'sent', action: 'create', payload: { title: updated.title } })
+          ).catch(err => console.warn('[intents] create emit failed:', err))
+        }
+        // Emit rescheduled notify if this milestone is linked and the date changed.
+        if (updated.dayglance_linked && existing.dayglance_linked && existing.date !== updated.date) {
+          emitRescheduledNotify(updated, existing.date).catch(err =>
+            console.warn('[intents] rescheduled emit failed:', err)
+          )
+        }
+        // Emit updated notify if the title changed.
+        if (updated.dayglance_linked && existing.dayglance_linked && existing.title !== updated.title) {
+          emitStateNotify(updated, EVENTS.UPDATED).catch(err =>
+            console.warn('[intents] updated emit failed:', err)
+          )
+        }
       } else if (milestoneData.recurrence === 'annual') {
         // Generate one instance per year from base year to chosen end year (max +99)
         const rid      = uid()
@@ -640,13 +753,25 @@ export default function TimelineView({ milestones, setMilestones }) {
         setNewlyAddedId(created[0].id)
         audio.playChime()
       } else {
-        const m = await addMilestone({ ...milestoneData, media_type: newMediaType, has_photo: !!photoFile })
+        const dgLinked = !!trackAsDayglanceGoal
+        const m = await addMilestone({
+          ...milestoneData,
+          media_type:       newMediaType,
+          has_photo:        !!photoFile,
+          dayglance_linked: dgLinked,
+        })
         if (mediaFile) await dbPutMedia(m.id, mediaFile, mediaFile.type)
         if (photoFile) await dbPutPhoto(m.id, photoFile, photoFile.type)
         const newMs = [...milestones, m]
         pushHistory(newMs)
         setMilestones(newMs)
         setNewlyAddedId(m.id)
+        // Emit outbound create to dayGLANCE if the user checked "track as dayGLANCE Goal".
+        if (dgLinked) {
+          emitCreateForMilestone(m).then(() =>
+            appendActivityEntry({ type: 'sent', action: 'create', payload: { title: m.title } })
+          ).catch(err => console.warn('[intents] create emit failed:', err))
+        }
         // Add to any chapters the user selected in the form, and close ongoing chapters if requested.
         if (chapterIds?.length || closeChapterIds?.length) {
           const updated = [...chapters]
@@ -715,10 +840,17 @@ export default function TimelineView({ milestones, setMilestones }) {
 
   async function handleDelete(id) {
     try {
+      const target = milestones.find(m => m.id === id)
       await deleteMilestone(id)
       const newMs = milestones.filter(m => m.id !== id)
       pushHistory(newMs)
       setMilestones(newMs)
+      getSyncEngine()?.upload()
+      if (target?.dayglance_linked) {
+        emitStateNotify(target, EVENTS.DELETED).catch(err =>
+          console.warn('[intents] deleted emit failed:', err)
+        )
+      }
     } catch (err) {
       console.error('Delete failed:', err)
       showToast('Failed to delete milestone. Please try again.')
@@ -728,10 +860,14 @@ export default function TimelineView({ milestones, setMilestones }) {
   async function handleDeleteSeries(recurrence_id) {
     try {
       const toDelete = milestones.filter(m => m.recurrence_id === recurrence_id)
-      for (const m of toDelete) await deleteMilestone(m.id)
+      for (const m of toDelete) {
+        writeMilestoneTombstone(m.id)
+        await deleteMilestone(m.id)
+      }
       const newMs = milestones.filter(m => m.recurrence_id !== recurrence_id)
       pushHistory(newMs)
       setMilestones(newMs)
+      getSyncEngine()?.upload()
     } catch (err) {
       console.error('Delete series failed:', err)
       showToast('Failed to delete recurring series. Please try again.')
@@ -794,6 +930,7 @@ export default function TimelineView({ milestones, setMilestones }) {
     }
     setChapters(prev => prev.filter(c => c.id !== id))
     if (drilledChapter?.id === id) exitDrillIn(true)
+    getSyncEngine()?.upload()
   }
 
   // ── Drill-in (Phase 5) ───────────────────────────────────────────────────────
@@ -1230,13 +1367,36 @@ export default function TimelineView({ milestones, setMilestones }) {
           )}
         </div>
 
-        {/* Right: stats + settings + help */}
+        {/* Right: stats + settings + help + sync indicator */}
         <div className="header-right">
           <button className="action-link" onClick={() => setSummaryOpen(true)}>stats</button>
           <span className="action-sep">|</span>
           <button className="action-link" onClick={() => setSettingsOpen(true)}>settings</button>
           <span className="action-sep">|</span>
           <button className="action-link" onClick={() => setHelpOpen(true)}>?</button>
+          {onOpenCloudSync && (
+            <>
+              <span className="action-sep">|</span>
+              <button
+                className="action-link sync-status-btn"
+                onClick={onOpenCloudSync}
+                title={syncHalted ? 'Sync error (click to configure)' : syncStatus === 'syncing' ? 'Syncing...' : syncError ? 'Sync error' : 'Cloud sync'}
+              >
+                <span
+                  className="sync-dot"
+                  style={{
+                    display: 'inline-block',
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    marginRight: '4px',
+                    background: syncHalted || syncError ? '#E85D75' : syncStatus === 'syncing' ? '#D4A800' : '#34D399',
+                  }}
+                />
+                sync
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -1447,14 +1607,21 @@ export default function TimelineView({ milestones, setMilestones }) {
           birthday={birthday}       onBirthdayChange={v => {
             setBirthday(v)
             localStorage.setItem('lifeglance-birthday', v)
+            localStorage.setItem('lifeglance-birthday-updated-at', new Date().toISOString())
           }}
           milestones={milestones}
           onExportImage={handleExportImage}
           onSaveBackup={handleSaveBackup}
           onRestoreFile={handleRestoreFile}
           onImportIcsFile={handleImportIcsFile}
+          onOpenCloudSync={onOpenCloudSync ? () => { setSettingsOpen(false); onOpenCloudSync() } : undefined}
+          onOpenAutoBackup={() => { setSettingsOpen(false); setAutoBackupOpen(true) }}
+          onOpenActivityLog={isIntegrationEnabled() ? () => { setSettingsOpen(false); setActivityLogOpen(true) } : undefined}
           onClose={() => setSettingsOpen(false)}
         />
+      )}
+      {activityLogOpen && (
+        <ActivityLogModal onClose={() => setActivityLogOpen(false)} />
       )}
       {icsImport && (
         <IcsImportModal
@@ -1490,6 +1657,20 @@ export default function TimelineView({ milestones, setMilestones }) {
         <div className={`toast toast-${toast.type}`} role="alert" onClick={() => setToast(null)}>
           {toast.message}
         </div>
+      )}
+      {cloudSyncOpen && (
+        <CloudSyncModal
+          syncStatus={syncStatus}
+          syncError={syncError}
+          syncHalted={syncHalted}
+          lastSynced={lastSynced}
+          onClose={() => setCloudSyncOpen(false)}
+        />
+      )}
+      {autoBackupOpen && (
+        <AutoBackupModal
+          onClose={() => setAutoBackupOpen(false)}
+        />
       )}
     </div>
   )

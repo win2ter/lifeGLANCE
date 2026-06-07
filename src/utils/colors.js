@@ -31,4 +31,5 @@ export function loadCategories() {
 
 export function saveCategories(cats) {
   localStorage.setItem(CAT_KEY, JSON.stringify(cats))
+  localStorage.setItem('lifeglance-categories-updated-at', new Date().toISOString())
 }

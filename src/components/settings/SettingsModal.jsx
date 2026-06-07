@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react'
 import { saveCategories } from '../../utils/colors'
 import { isMuted, setMuted } from '../../utils/audio'
+import IntegrationSettings from '../dayglance/IntegrationSettings'
 
 const TEXT_SIZES_ALL = ['small', 'normal', 'big', 'bigger']
 
@@ -22,6 +23,9 @@ export default function SettingsModal({
   birthday, onBirthdayChange,
   milestones,
   onExportImage, onSaveBackup, onRestoreFile, onImportIcsFile,
+  onOpenCloudSync,
+  onOpenAutoBackup,
+  onOpenActivityLog,
   onClose,
   ultraCompact = false,
 }) {
@@ -185,6 +189,25 @@ export default function SettingsModal({
           </div>
         </div>
 
+        {/* ── Cloud sync ────────────────────────────────────────────────── */}
+        {(onOpenCloudSync || onOpenAutoBackup) && (
+          <div className="settings-section">
+            <div className="settings-label">cloud</div>
+            <div className="settings-backup-row">
+              {onOpenCloudSync && (
+                <button className="btn"
+                  style={{ fontSize: '0.75rem', padding: '0.4rem 0.85rem' }}
+                  onClick={() => { onClose(); onOpenCloudSync() }}>cloud sync</button>
+              )}
+              {onOpenAutoBackup && (
+                <button className="btn"
+                  style={{ fontSize: '0.75rem', padding: '0.4rem 0.85rem' }}
+                  onClick={() => { onClose(); onOpenAutoBackup() }}>auto-backup</button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* ── Data / backup ─────────────────────────────────────────────── */}
         <div className="settings-section">
           <div className="settings-label">data</div>
@@ -222,6 +245,20 @@ export default function SettingsModal({
             .ics import supports all-day events only. Timed events are skipped — the import dialog shows a count of how many were omitted.
           </p>
         </div>
+
+        <IntegrationSettings />
+
+        {onOpenActivityLog && (
+          <div className="settings-section">
+            <button className="btn" style={{ fontSize: '0.75rem', padding: '0.4rem 0.85rem' }}
+              onClick={() => { onClose(); onOpenActivityLog() }}>
+              activity log
+            </button>
+            <p className="settings-note" style={{ marginTop: '0.4rem' }}>
+              press <kbd>L</kbd> to open at any time
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
