@@ -1,6 +1,23 @@
 import React, { useState, useEffect } from 'react'
 import { getSyncEngine } from '../../sync/engine'
 
+const PROXY = '/api/webdav-proxy'
+
+// Recursively MKCOL a directory path, creating parents as needed.
+// Tolerates 405 (already exists) and 201 (created) as success.
+async function mkdirp(url, username, password) {
+  const auth = username ? { Authorization: 'Basic ' + btoa(`${username}:${password}`) } : {}
+  const res = await fetch(PROXY, { method: 'MKCOL', headers: { ...auth, 'X-WebDAV-Url': url } })
+  if (res.status === 201 || res.status === 405) return           // created or already exists
+  if (res.status === 403 || res.status === 409 || res.status === 404) {
+    const parent = url.replace(/\/+$/, '').replace(/\/[^/]+$/, '/')
+    if (parent && parent !== url) {
+      await mkdirp(parent, username, password)
+      await fetch(PROXY, { method: 'MKCOL', headers: { ...auth, 'X-WebDAV-Url': url } })
+    }
+  }
+}
+
 const PROVIDERS = [
   { value: 'nextcloud', label: 'Nextcloud / WebDAV' },
   { value: 'koofr',     label: 'Koofr' },
@@ -79,6 +96,8 @@ export default function CloudSyncModal({ syncStatus, syncError, syncHalted, last
       const config = { provider, url, username, password, folder, encrypt, enabled: true,
         webdavUrl: url, nextcloudUrl: url, appPassword: password }
       engine?.setConfig(config)
+      const dirUrl = `${url.replace(/\/+$/, '')}/${folder}/`
+      await mkdirp(dirUrl, username, password)
       if (encrypt && passphrase) {
         const { setupEncryptionKey } = await import('@glance-apps/sync')
         await setupEncryptionKey(passphrase)
