@@ -1577,6 +1577,7 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
           birthday={birthday}       onBirthdayChange={v => {
             setBirthday(v)
             localStorage.setItem('lifeglance-birthday', v)
+            localStorage.setItem('lifeglance-birthday-updated-at', new Date().toISOString())
           }}
           milestones={milestones}
           onExportImage={handleExportImage}

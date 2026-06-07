@@ -1,6 +1,7 @@
 import { mergeArrayById, pruneTombstones } from '@glance-apps/sync';
 import { dbGetAll, dbGetAllChapters, dbPut, dbDelete, dbPutChapter, dbDeleteChapter } from '../data/db.js';
 import { getMilestoneTombstones, getChapterTombstones } from './tombstones.js';
+import { loadCategories, saveCategories } from '../utils/colors.js';
 
 const RETENTION_MS = 90 * 86_400_000;
 
@@ -20,10 +21,13 @@ export const buildPayload = async (milestonesRef, chaptersRef) => {
         chapters,
         milestoneTombstones: getMilestoneTombstones(),
         chapterTombstones: getChapterTombstones(),
+        birthday: localStorage.getItem('lifeglance-birthday') || '',
+        birthdayUpdatedAt: localStorage.getItem('lifeglance-birthday-updated-at') || '',
+        categories: loadCategories(),
+        categoriesUpdatedAt: localStorage.getItem('lifeglance-categories-updated-at') || '',
       }
     }
   };
-  console.log('[sync:build] milestones:', milestones.length, 'idb:', idbMilestones.length, 'ref:', milestonesRef?.current?.length ?? 'n/a')
   return payload;
 };
 
@@ -37,6 +41,10 @@ export const buildBackupPayload = async () => {
         chapters,
         milestoneTombstones: getMilestoneTombstones(),
         chapterTombstones: getChapterTombstones(),
+        birthday: localStorage.getItem('lifeglance-birthday') || '',
+        birthdayUpdatedAt: localStorage.getItem('lifeglance-birthday-updated-at') || '',
+        categories: loadCategories(),
+        categoriesUpdatedAt: localStorage.getItem('lifeglance-categories-updated-at') || '',
       }
     }
   };
@@ -64,8 +72,6 @@ export const makeApplyPayload = (setMilestones, setChapters) =>
       .map(m => m.id)
       .filter(id => !mergedMilestoneIds.has(id));
 
-    console.log('[sync:apply] milestones in:', milestones.length, 'current IDB:', currentMilestones.length, 'to delete:', milestoneIdsToDelete.length, 'tombstones:', Object.keys(milestoneTombstones).length)
-
     // Write merged milestones
     for (const m of milestones) await dbPut(m);
     for (const id of milestoneIdsToDelete) await dbDelete(id);
@@ -80,6 +86,18 @@ export const makeApplyPayload = (setMilestones, setChapters) =>
     // Write merged chapters
     for (const c of chapters) await dbPutChapter(c);
     for (const id of chapterIdsToDelete) await dbDeleteChapter(id);
+
+    // Apply birthday (last-writer-wins — already resolved in mergePayloads)
+    if (life.birthday) {
+      localStorage.setItem('lifeglance-birthday', life.birthday)
+      if (life.birthdayUpdatedAt) localStorage.setItem('lifeglance-birthday-updated-at', life.birthdayUpdatedAt)
+    }
+
+    // Apply categories
+    if (Array.isArray(life.categories) && life.categories.length > 0) {
+      saveCategories(life.categories)
+      if (life.categoriesUpdatedAt) localStorage.setItem('lifeglance-categories-updated-at', life.categoriesUpdatedAt)
+    }
 
     // Reload React state
     const [freshMilestones, freshChapters] = await Promise.all([dbGetAll(), dbGetAllChapters()]);
@@ -110,19 +128,38 @@ export const mergePayloads = (local, remote) => {
   const { merged: mergedChapters } = mergeArrayById(lc, rc, chapterTombstones, null,
     { idField: 'id', timestampField: 'updated_at' });
 
-  const mergedLife = { milestones: mergedMilestones, chapters: mergedChapters, milestoneTombstones, chapterTombstones };
+  // Last-writer-wins for birthday and categories using paired updatedAt timestamps
+  const localBirthdayTs  = localLife.birthdayUpdatedAt  ? new Date(localLife.birthdayUpdatedAt).getTime()  : 0
+  const remoteBirthdayTs = remoteLife.birthdayUpdatedAt ? new Date(remoteLife.birthdayUpdatedAt).getTime() : 0
+  const mergedBirthday          = remoteBirthdayTs >= localBirthdayTs ? (remoteLife.birthday ?? localLife.birthday ?? '') : (localLife.birthday ?? '')
+  const mergedBirthdayUpdatedAt = remoteBirthdayTs >= localBirthdayTs ? (remoteLife.birthdayUpdatedAt ?? localLife.birthdayUpdatedAt ?? '') : (localLife.birthdayUpdatedAt ?? '')
+
+  const localCatsTs  = localLife.categoriesUpdatedAt  ? new Date(localLife.categoriesUpdatedAt).getTime()  : 0
+  const remoteCatsTs = remoteLife.categoriesUpdatedAt ? new Date(remoteLife.categoriesUpdatedAt).getTime() : 0
+  const mergedCategories          = remoteCatsTs >= localCatsTs ? (remoteLife.categories ?? localLife.categories ?? []) : (localLife.categories ?? [])
+  const mergedCategoriesUpdatedAt = remoteCatsTs >= localCatsTs ? (remoteLife.categoriesUpdatedAt ?? localLife.categoriesUpdatedAt ?? '') : (localLife.categoriesUpdatedAt ?? '')
+
+  const mergedLife = {
+    milestones: mergedMilestones, chapters: mergedChapters, milestoneTombstones, chapterTombstones,
+    birthday: mergedBirthday, birthdayUpdatedAt: mergedBirthdayUpdatedAt,
+    categories: mergedCategories, categoriesUpdatedAt: mergedCategoriesUpdatedAt,
+  };
 
   const localChanged =
     JSON.stringify(mergedMilestones) !== JSON.stringify(lm) ||
     JSON.stringify(mergedChapters) !== JSON.stringify(lc) ||
     JSON.stringify(milestoneTombstones) !== JSON.stringify(lmt) ||
-    JSON.stringify(chapterTombstones) !== JSON.stringify(lct);
+    JSON.stringify(chapterTombstones) !== JSON.stringify(lct) ||
+    mergedBirthday !== (localLife.birthday ?? '') ||
+    JSON.stringify(mergedCategories) !== JSON.stringify(localLife.categories ?? []);
 
   const remoteChanged =
     JSON.stringify(mergedMilestones) !== JSON.stringify(rm) ||
     JSON.stringify(mergedChapters) !== JSON.stringify(rc) ||
     JSON.stringify(milestoneTombstones) !== JSON.stringify(rmt) ||
-    JSON.stringify(chapterTombstones) !== JSON.stringify(rct);
+    JSON.stringify(chapterTombstones) !== JSON.stringify(rct) ||
+    mergedBirthday !== (remoteLife.birthday ?? '') ||
+    JSON.stringify(mergedCategories) !== JSON.stringify(remoteLife.categories ?? []);
 
   return { data: { lives: { default: mergedLife } }, localChanged, remoteChanged };
 };
