@@ -28,7 +28,7 @@ import { dbPutMedia, dbPutPhoto, dbDeletePhoto, dbGetPhoto, dbPut } from '../../
 import { parseIcs }      from '../../utils/icsParser'
 import * as audio from '../../utils/audio'
 import { useIntentPoller } from '../../hooks/useIntentPoller.js'
-import { emitCreateForMilestone, emitRescheduledNotify, isIntegrationEnabled } from '../../lib/intentsTransport.js'
+import { emitCreateForMilestone, emitRescheduledNotify, emitStateNotify, isIntegrationEnabled } from '../../lib/intentsTransport.js'
 import { appendActivityEntry } from '../../lib/intentsActivityLog.js'
 import ActivityLogModal from '../dayglance/ActivityLogModal.jsx'
 import { EVENTS } from '@glance-apps/intents'
@@ -716,6 +716,12 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
             console.warn('[intents] rescheduled emit failed:', err)
           )
         }
+        // Emit updated notify if the title changed.
+        if (updated.dayglance_linked && existing.dayglance_linked && existing.title !== updated.title) {
+          emitStateNotify(updated, EVENTS.UPDATED).catch(err =>
+            console.warn('[intents] updated emit failed:', err)
+          )
+        }
       } else if (milestoneData.recurrence === 'annual') {
         // Generate one instance per year from base year to chosen end year (max +99)
         const rid      = uid()
@@ -834,11 +840,17 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
 
   async function handleDelete(id) {
     try {
+      const target = milestones.find(m => m.id === id)
       await deleteMilestone(id)
       const newMs = milestones.filter(m => m.id !== id)
       pushHistory(newMs)
       setMilestones(newMs)
       getSyncEngine()?.upload()
+      if (target?.dayglance_linked) {
+        emitStateNotify(target, EVENTS.DELETED).catch(err =>
+          console.warn('[intents] deleted emit failed:', err)
+        )
+      }
     } catch (err) {
       console.error('Delete failed:', err)
       showToast('Failed to delete milestone. Please try again.')

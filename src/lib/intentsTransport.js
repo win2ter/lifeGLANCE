@@ -211,7 +211,32 @@ export async function emitCreateForMilestone(milestone) {
       due:              milestone.date,
       source_app:       SOURCE_APPS.LIFEGLANCE,
       source_entity_id: milestone.id,
+      entity_type:      'goal',
       notes:            milestone.note || undefined,
+    },
+  })
+  await putEventFile(cfg, envelope)
+  return envelope.event_id
+}
+
+// Emit an outbound `notify` for any state change on a linked milestone.
+export async function emitStateNotify(milestone, event, extra = {}) {
+  const cfg = loadIntentsConfig()
+  if (!cfg.enabled || !cfg.webdavUrl.trim()) return
+  if (!milestone.dayglance_linked) return
+  const envelope = await buildOutboundEnvelope({
+    emittedBy: SOURCE_APPS.LIFEGLANCE,
+    action:    ACTIONS.NOTIFY,
+    payload: {
+      source_app:       SOURCE_APPS.LIFEGLANCE,
+      source_entity_id: milestone.id,
+      entity_type:      'goal',
+      event,
+      task_id:          milestone.dayglance_task_id ?? '',
+      title:            milestone.title,
+      timestamp:        new Date().toISOString(),
+      due:              milestone.date,
+      ...extra,
     },
   })
   await putEventFile(cfg, envelope)
