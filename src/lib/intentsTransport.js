@@ -280,6 +280,8 @@ export async function pollEvents(onEvent) {
     : files
   ).filter(f => f !== SALT_FILENAME)
 
+  console.debug('[intents:poll] cursor:', cursor || '(none)', '| files:', files.length, '| toProcess:', toProcess.length, toProcess)
+
   let lastProcessed = cursor
   for (const filename of toProcess) {
     let envelope
