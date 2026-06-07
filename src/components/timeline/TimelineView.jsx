@@ -173,10 +173,12 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
   useEffect(() => { milestonesRef.current = milestones }, [milestones])
 
   // Inbound: dayGLANCE pushed a new Goal → create a mirrored milestone here.
-  const handleInboundCreate = useCallback(async (payload) => {
+  const handleInboundCreate = useCallback(async (payload, event_id) => {
     if (!payload.title) return
     try {
+      if (event_id && milestonesRef.current.some(m => m.id === event_id)) return
       const m = await addMilestone({
+        id:               event_id,
         title:            payload.title,
         date:             payload.due ? new Date(payload.due) : new Date(),
         date_precision:   'day',

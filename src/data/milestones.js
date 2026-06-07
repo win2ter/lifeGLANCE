@@ -14,6 +14,7 @@ export function uid() {
 }
 
 export function buildMilestone({
+  id,
   title,
   date,           // Date object or ISO string
   date_precision = 'month',
@@ -37,7 +38,7 @@ export function buildMilestone({
   const now     = new Date().toISOString()
 
   return {
-    id:             uid(),
+    id:             id ?? uid(),
     title:          title.trim(),
     date:           dateObj.toISOString(),
     date_precision,
