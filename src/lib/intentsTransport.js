@@ -7,6 +7,7 @@ import {
   parseEnvelope,
   parseEncryptedEnvelope,
   filenameFor,
+  eventId as makeEventId,
   SOURCE_APPS,
   ACTIONS,
   EVENTS,
@@ -224,15 +225,18 @@ export async function emitStateNotify(milestone, event, extra = {}) {
   const cfg = loadIntentsConfig()
   if (!cfg.enabled || !cfg.webdavUrl.trim()) return
   if (!milestone.dayglance_linked) return
+  const evtId = makeEventId()
   const envelope = await buildOutboundEnvelope({
+    eventId:   evtId,
     emittedBy: SOURCE_APPS.LIFEGLANCE,
     action:    ACTIONS.NOTIFY,
     payload: {
+      event_id:         evtId,
       source_app:       SOURCE_APPS.LIFEGLANCE,
       source_entity_id: milestone.id,
       entity_type:      'goal',
       event,
-      task_id:          milestone.dayglance_task_id ?? '',
+      task_id:          milestone.dayglance_task_id || milestone.id,
       title:            milestone.title,
       timestamp:        new Date().toISOString(),
       due:              milestone.date,
@@ -245,26 +249,7 @@ export async function emitStateNotify(milestone, event, extra = {}) {
 
 // Emit an outbound `notify` when a linked milestone's date changes.
 export async function emitRescheduledNotify(milestone, previousDue) {
-  const cfg = loadIntentsConfig()
-  if (!cfg.enabled || !cfg.webdavUrl.trim()) return
-  if (!milestone.dayglance_linked) return
-  const envelope = await buildOutboundEnvelope({
-    emittedBy: SOURCE_APPS.LIFEGLANCE,
-    action:    ACTIONS.NOTIFY,
-    payload: {
-      source_app:       SOURCE_APPS.LIFEGLANCE,
-      source_entity_id: milestone.id,
-      event:            EVENTS.RESCHEDULED,
-      task_id:          milestone.dayglance_task_id ?? '',
-      title:            milestone.title,
-      timestamp:        new Date().toISOString(),
-      due:              milestone.date,
-      previous_due:     previousDue,
-      entity_type:      'goal',
-    },
-  })
-  await putEventFile(cfg, envelope)
-  return envelope.event_id
+  return emitStateNotify(milestone, EVENTS.RESCHEDULED, { previous_due: previousDue })
 }
 
 // ── Poller ────────────────────────────────────────────────────────────────────
