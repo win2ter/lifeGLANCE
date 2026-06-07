@@ -31,7 +31,7 @@ export function useIntentPoller({
       activityRef.current?.({ type: 'received', event_id, action, emitted_by, payload })
 
       if (action === ACTIONS.CREATE && emitted_by === SOURCE_APPS.DAYGLANCE) {
-        await createRef.current?.(payload)
+        await createRef.current?.(payload, event_id)
       } else if (action === ACTIONS.NOTIFY && payload.source_app === SOURCE_APPS.LIFEGLANCE) {
         await notifyRef.current?.(payload)
       }
