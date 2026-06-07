@@ -105,9 +105,9 @@ export const mergePayloads = (local, remote) => {
   const milestoneTombstones = pruneTombstones({ ...lmt, ...rmt }, cutoff);
   const chapterTombstones = pruneTombstones({ ...lct, ...rct }, cutoff);
 
-  const mergedMilestones = mergeArrayById(lm, rm, milestoneTombstones, null,
+  const { merged: mergedMilestones } = mergeArrayById(lm, rm, milestoneTombstones, null,
     { idField: 'id', timestampField: 'updated_at' });
-  const mergedChapters = mergeArrayById(lc, rc, chapterTombstones, null,
+  const { merged: mergedChapters } = mergeArrayById(lc, rc, chapterTombstones, null,
     { idField: 'id', timestampField: 'updated_at' });
 
   const mergedLife = { milestones: mergedMilestones, chapters: mergedChapters, milestoneTombstones, chapterTombstones };
