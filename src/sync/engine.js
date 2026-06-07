@@ -28,6 +28,13 @@ export const initSyncEngine = ({ milestonesRef, chaptersRef, setMilestones, setC
 
     proxyUrl: import.meta.env.VITE_WEBDAV_PROXY_URL ?? '',
 
+    // First-sync conflict: remote has data but this device has never synced.
+    // Always keep local and overwrite remote — a user enabling sync for the
+    // first time should never lose their existing timeline.
+    onConflict: (_remoteData, _lastModified, _etag) => {
+      engine?.upload()
+    },
+
     onStatusChange: setSyncStatus,
     onError: (msg, code, isHardStop) => {
       setSyncError({ message: msg, code, isHardStop });

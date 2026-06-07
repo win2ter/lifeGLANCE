@@ -8,8 +8,11 @@ const RETENTION_MS = 90 * 86_400_000;
 // Accepts a milestonesRef so it can read the latest React state for milestones
 // (avoiding stale closures), but falls back to IDB for robustness.
 export const buildPayload = async (milestonesRef, chaptersRef) => {
-  const milestones = milestonesRef?.current ?? await dbGetAll();
-  const chapters = chaptersRef?.current ?? await dbGetAllChapters();
+  // IDB is authoritative. Refs are used only when non-empty to avoid stale
+  // empty state (e.g. before IDB loads into React) overwriting real data.
+  const [idbMilestones, idbChapters] = await Promise.all([dbGetAll(), dbGetAllChapters()])
+  const milestones = (milestonesRef?.current?.length > 0) ? milestonesRef.current : idbMilestones
+  const chapters   = (chaptersRef?.current?.length   > 0) ? chaptersRef.current   : idbChapters
   return {
     lives: {
       default: {
