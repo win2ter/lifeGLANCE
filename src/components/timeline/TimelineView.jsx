@@ -471,7 +471,7 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
   const keyStateRef = useRef(null)
   keyStateRef.current = {
     pastIdx, futureIdx, past, future, zoom,
-    addOpen, detail, settingsOpen, helpOpen, kbdOpen, searchOpen, chapterSheetOpen, drilledChapter,
+    addOpen, detail, settingsOpen, helpOpen, kbdOpen, searchOpen, chapterSheetOpen, drilledChapter, activityLogOpen,
     handlePastNav, handleFutureNav, handleJumpToToday, handleViewMode, closeSheet,
     handleUndo, handleRedo, canUndo, canRedo,
     clustering, setClustering,
@@ -650,7 +650,7 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
           if (s.helpOpen)              { setHelpOpen(false); break }
           if (s.kbdOpen)               { setKbdOpen(false); break }
           if (s.searchOpen)            { setSearchOpen(false); break }
-          if (activityLogOpen)         { setActivityLogOpen(false); break }
+          if (s.activityLogOpen)        { setActivityLogOpen(false); break }
           if (anyDrillIn)              { s.exitDrillIn(); break }
           break
         }
