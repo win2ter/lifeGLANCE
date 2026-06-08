@@ -61,6 +61,13 @@ export default function App() {
           setLastSynced,
           setShowPassphraseModal,
         })
+
+        // Restore encryption session key from IDB so the passphrase prompt
+        // only appears when the key genuinely isn't stored (first setup or
+        // new device), not on every page load.
+        import('@glance-apps/sync').then(({ initSessionKey }) => {
+          initSessionKey({ cryptoDBName: 'lifeglance-crypto' })
+        })
       })
       .catch((err) => {
         console.error('DB init failed:', err)
