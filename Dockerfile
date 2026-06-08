@@ -7,8 +7,14 @@ COPY . .
 RUN npm run build
 
 # Stage 2: Serve
-FROM nginx:alpine
+# Use node:alpine so we can run both nginx and the WebDAV proxy in one container.
+FROM node:20-alpine
+RUN apk add --no-cache nginx
+WORKDIR /app
 COPY --from=builder /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY nginx.conf /etc/nginx/http.d/default.conf
+COPY proxy/server.js proxy/package.json ./proxy/
+COPY docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh
 EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["./docker-entrypoint.sh"]

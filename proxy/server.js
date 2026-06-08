@@ -4,6 +4,7 @@ import { URL } from 'url'
 
 const PORT = 3001
 const PRIVATE_IP = /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|127\.|::1$|localhost)/i
+const BLOCK_PRIVATE = !!process.env.VERCEL
 
 const FORWARD_REQ_HEADERS = [
   'authorization', 'x-webdav-auth', 'content-type',
@@ -29,7 +30,7 @@ http.createServer(async (req, res) => {
     return res.end(JSON.stringify({ error: 'Invalid URL' }))
   }
 
-  if (PRIVATE_IP.test(url.hostname)) {
+  if (BLOCK_PRIVATE && PRIVATE_IP.test(url.hostname)) {
     res.writeHead(403, { 'Content-Type': 'application/json' })
     return res.end(JSON.stringify({ error: 'Private IP blocked' }))
   }
