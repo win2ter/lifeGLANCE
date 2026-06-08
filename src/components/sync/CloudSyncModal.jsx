@@ -18,6 +18,16 @@ async function mkdirp(url, username, password) {
   }
 }
 
+// Resolves the full WebDAV base URL for the given provider/username combo.
+// For Nextcloud, appends /remote.php/dav/files/{username}/ if not already present.
+function resolveWebdavBase(provider, url, username) {
+  const base = url.replace(/\/+$/, '')
+  if (provider === 'nextcloud' && !base.includes('/remote.php/dav')) {
+    return `${base}/remote.php/dav/files/${encodeURIComponent(username)}`
+  }
+  return base
+}
+
 const PROVIDERS = [
   { value: 'nextcloud', label: 'Nextcloud / WebDAV' },
   { value: 'koofr',     label: 'Koofr' },
@@ -69,8 +79,9 @@ export default function CloudSyncModal({ syncStatus, syncError, syncHalted, last
     setTestResult(null)
     try {
       // Build a temporary config to test
+      const webdavBase = resolveWebdavBase(provider, url, username)
       const config = { provider, url, username, password, folder, enabled: true,
-        webdavUrl: url, nextcloudUrl: url, appPassword: password }
+        webdavUrl: webdavBase, nextcloudUrl: url, appPassword: password }
       const result = await engine?.test?.(config)
       if (!result) throw new Error('Sync engine not initialized.')
       setTestResult(result.success
@@ -93,10 +104,11 @@ export default function CloudSyncModal({ syncStatus, syncError, syncHalted, last
     }
     setSaving(true)
     try {
+      const webdavBase = resolveWebdavBase(provider, url, username)
       const config = { provider, url, username, password, folder, encrypt, enabled: true,
-        webdavUrl: url, nextcloudUrl: url, appPassword: password }
+        webdavUrl: webdavBase, nextcloudUrl: url, appPassword: password }
       engine?.setConfig(config)
-      const dirUrl = `${url.replace(/\/+$/, '')}/${folder}/`
+      const dirUrl = `${webdavBase}/${folder}/`
       await mkdirp(dirUrl, username, password)
       if (encrypt && passphrase) {
         const { setupEncryptionKey } = await import('@glance-apps/sync')
