@@ -40,6 +40,12 @@ export default function SettingsModal({
   const icsFileRef = useRef(null)
 
   useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  useEffect(() => {
     navigator.storage?.persisted?.()
       .then(p => setPersisted(p))
       .catch(() => {})
