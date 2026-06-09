@@ -185,9 +185,11 @@ export function assignLanes(milestones, maxLane = 0, cardTimeSpan = 0, forceAbov
             // Temporal overlap — repel in lane space
             const delta = ci.pos - cj.pos
             const dist  = Math.abs(delta)
-            // Full repulsion within 1 lane, tapers off beyond
+            // Full repulsion within 1 lane, tapers off beyond.
+            // When cards are at the same position use index to break the tie
+            // so they're pushed in opposite directions rather than together.
             if (dist < 1.5) {
-              const sign = delta >= 0 ? 1 : -1
+              const sign = dist > 0.001 ? (delta > 0 ? 1 : -1) : (i > j ? 1 : -1)
               force += sign * K_REPEL * (1.5 - dist) / 1.5
             }
           }
