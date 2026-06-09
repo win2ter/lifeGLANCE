@@ -1945,6 +1945,12 @@ button, input, select, textarea {
 }
 
 /* ─── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 400px) {
+  /* Very narrow phones (iPhone SE, Z Fold portrait): hide minimap to reclaim
+     vertical space and prevent bottom bar from wrapping to two lines */
+  .minimap-bar { display: none; }
+}
+
 @media (max-width: 480px) {
   /* Onboarding: reduce gaps and reserved prompt height on portrait phones */
   .onboarding         { padding: 1.5rem 1.25rem 3.5rem; }
