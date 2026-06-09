@@ -507,6 +507,9 @@ button, input, select, textarea {
   border-top: 1px solid var(--border);
   flex-shrink: 0;
   background: var(--bg);
+  gap: 0.4rem;
+  flex-wrap: nowrap;
+  min-height: 0;
 }
 
 .add-milestone-btn {
@@ -1913,6 +1916,22 @@ button, input, select, textarea {
   .timeline-header { padding: 0.18rem 0.8rem; }
   .action-link     { font-size: 0.5rem; }
   .action-sep      { font-size: 0.6rem; }
+
+  /* ── Compact bottom bar for landscape phones ── */
+  .timeline-bottom {
+    padding: 0.25rem 0.6rem;
+    padding-bottom: calc(0.25rem + env(safe-area-inset-bottom, 0px));
+    gap: 0.3rem;
+  }
+  .add-milestone-btn,
+  .add-chapter-btn {
+    padding: 0.25rem 0.55rem;
+    font-size: 0.7rem;
+  }
+  .today-btn {
+    padding: 0.25rem 0.55rem;
+    font-size: 0.62rem;
+  }
 
   /* Onboarding: compress everything for landscape phones, push content down from edge */
   .onboarding         { justify-content: flex-start; padding: 1.5rem 1.5rem 4rem; }
