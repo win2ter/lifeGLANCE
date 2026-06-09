@@ -1916,7 +1916,6 @@ button, input, select, textarea {
   .timeline-header { padding: 0.18rem 0.8rem; }
   .action-link     { font-size: 0.5rem; }
   .action-sep      { font-size: 0.6rem; }
-  .minimap-bar     { display: none; }
 
   /* ── Compact bottom bar for landscape phones ── */
   .timeline-bottom {
@@ -1946,9 +1945,10 @@ button, input, select, textarea {
 }
 
 /* ─── Responsive ───────────────────────────────────────────────────────────── */
-@media (max-width: 400px) {
-  /* Very narrow phones (iPhone SE, Z Fold portrait): hide minimap to reclaim
-     vertical space and prevent bottom bar from wrapping to two lines */
+@media (max-width: 400px),
+       (max-height: 380px) {
+  /* Very small phones: iPhone SE (375px landscape height) and Z Fold portrait
+     (344px wide). Most modern phones are ≥390px in their small dimension. */
   .minimap-bar { display: none; }
 }
 
