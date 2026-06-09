@@ -30,7 +30,7 @@
   "activate": "aktivieren",
   "encryptionEnabled": "Verschlüsselung aktiviert. Die Passphrase wird nicht gespeichert — sie muss auf diesem Gerät nicht erneut eingegeben werden.",
   "setupFailed": "Einrichtung fehlgeschlagen: {{message}}",
-  "integrationNote": "lifeGLANCE und dayGLANCE müssen auf denselben WebDAV-Endpunkt und denselben Ereignispfad zeigen. Als „als dayGLANCE-Ziel verfolgen" markierte Meilensteine erscheinen als Ziele in dayGLANCE; Zielbestätigungen und Datumsänderungen synchronisieren sich hier.",
+  "integrationNote": "lifeGLANCE und dayGLANCE müssen auf denselben WebDAV-Endpunkt und denselben Ereignispfad zeigen. Als «als dayGLANCE-Ziel verfolgen» markierte Meilensteine erscheinen als Ziele in dayGLANCE; Zielbestätigungen und Datumsänderungen synchronisieren sich hier.",
   "toastGoalAdded": "dayGLANCE-Ziel hinzugefügt: « {{title}} »",
   "toastGoalCompleted": "« {{title}} » in dayGLANCE abgeschlossen",
   "toastGoalDeleted": "dayGLANCE-Ziel gelöscht — « {{title}} » ist hier noch vorhanden."
