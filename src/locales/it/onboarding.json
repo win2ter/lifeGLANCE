@@ -1,0 +1,22 @@
+{
+  "tagline": "La tua vita, a colpo d'occhio.",
+  "begin": "inizia →",
+  "step2Eyebrow": "passo 2 di 4 — il tuo passato",
+  "step2Prompt": "Qual è uno degli eventi più felici che hai vissuto finora?",
+  "step2Placeholder": "es. Ci siamo sposati",
+  "step3Eyebrow": "passo 3 di 4 — il tuo futuro",
+  "step3Prompt": "Qual è la cosa che aspetti di più nel futuro?",
+  "step3Placeholder": "es. Viaggio in Giappone",
+  "step4Eyebrow": "passo 4 di 4 — la tua timeline",
+  "step4Prompt": "Ecco la tua vita, a colpo d'occhio.",
+  "approximateIsFine": "una data approssimativa va bene",
+  "errorPastEvent": "Questo dovrebbe essere un evento passato.",
+  "errorFutureEvent": "Questo dovrebbe essere un evento futuro.",
+  "placeOnTimeline": "aggiungi alla mia timeline →",
+  "lookingBack": "guardando indietro",
+  "lookingAhead": "guardando avanti",
+  "noPastEvent": "nessun evento passato aggiunto",
+  "noFutureEvent": "nessun evento futuro aggiunto",
+  "openTimeline": "apri la mia timeline →",
+  "keyboardShortcutHint": "premi <kbd>?</kbd> in qualsiasi momento per le scorciatoie da tastiera"
+}

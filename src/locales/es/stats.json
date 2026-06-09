@@ -1,0 +1,15 @@
+{
+  "title": "estadísticas de la línea de tiempo",
+  "noMilestones": "sin hitos por ahora",
+  "milestones": "hitos",
+  "inThePast": "en el pasado",
+  "upcoming": "próximos",
+  "timeTracked": "tiempo registrado",
+  "longestGap": "intervalo más largo",
+  "busiestYear": "año más activo",
+  "byDecade": "por década",
+  "pastLabel": "← pasado",
+  "futureLabel": "futuro →",
+  "milestoneCount_one": "{{count}} hito",
+  "milestoneCount_other": "{{count}} hitos"
+}

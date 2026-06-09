@@ -1,0 +1,23 @@
+{
+  "skip": "überspringen",
+  "cancel": "abbrechen",
+  "save": "speichern",
+  "saveChanges": "Änderungen speichern",
+  "delete": "löschen",
+  "edit": "bearbeiten",
+  "add": "hinzufügen",
+  "remove": "entfernen",
+  "replace": "ersetzen",
+  "month": "Monat",
+  "year": "Jahr",
+  "day": "Tag",
+  "date": "Datum",
+  "settings": "Einstellungen",
+  "eventName": "Ereignisname",
+  "placing": "wird platziert…",
+  "saving": "wird gespeichert…",
+  "deleting": "wird gelöscht…",
+  "loading": "Wird geladen…",
+  "testing": "wird getestet…",
+  "portraitMessage": "Bitte drehe dein Gerät für die beste Erfahrung"
+}

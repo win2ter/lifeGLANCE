@@ -28,6 +28,58 @@ import frStats from './locales/fr/stats.json'
 import frImport from './locales/fr/import.json'
 import frDayglance from './locales/fr/dayglance.json'
 
+import deCommon from './locales/de/common.json'
+import deOnboarding from './locales/de/onboarding.json'
+import deMilestone from './locales/de/milestone.json'
+import deChapter from './locales/de/chapter.json'
+import deSettings from './locales/de/settings.json'
+import deSync from './locales/de/sync.json'
+import deTimeline from './locales/de/timeline.json'
+import deSearch from './locales/de/search.json'
+import deHelp from './locales/de/help.json'
+import deStats from './locales/de/stats.json'
+import deImport from './locales/de/import.json'
+import deDayglance from './locales/de/dayglance.json'
+
+import esCommon from './locales/es/common.json'
+import esOnboarding from './locales/es/onboarding.json'
+import esMilestone from './locales/es/milestone.json'
+import esChapter from './locales/es/chapter.json'
+import esSettings from './locales/es/settings.json'
+import esSync from './locales/es/sync.json'
+import esTimeline from './locales/es/timeline.json'
+import esSearch from './locales/es/search.json'
+import esHelp from './locales/es/help.json'
+import esStats from './locales/es/stats.json'
+import esImport from './locales/es/import.json'
+import esDayglance from './locales/es/dayglance.json'
+
+import itCommon from './locales/it/common.json'
+import itOnboarding from './locales/it/onboarding.json'
+import itMilestone from './locales/it/milestone.json'
+import itChapter from './locales/it/chapter.json'
+import itSettings from './locales/it/settings.json'
+import itSync from './locales/it/sync.json'
+import itTimeline from './locales/it/timeline.json'
+import itSearch from './locales/it/search.json'
+import itHelp from './locales/it/help.json'
+import itStats from './locales/it/stats.json'
+import itImport from './locales/it/import.json'
+import itDayglance from './locales/it/dayglance.json'
+
+import ptCommon from './locales/pt/common.json'
+import ptOnboarding from './locales/pt/onboarding.json'
+import ptMilestone from './locales/pt/milestone.json'
+import ptChapter from './locales/pt/chapter.json'
+import ptSettings from './locales/pt/settings.json'
+import ptSync from './locales/pt/sync.json'
+import ptTimeline from './locales/pt/timeline.json'
+import ptSearch from './locales/pt/search.json'
+import ptHelp from './locales/pt/help.json'
+import ptStats from './locales/pt/stats.json'
+import ptImport from './locales/pt/import.json'
+import ptDayglance from './locales/pt/dayglance.json'
+
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
@@ -76,6 +128,62 @@ i18n
         stats: frStats,
         import: frImport,
         dayglance: frDayglance,
+      },
+      de: {
+        common: deCommon,
+        onboarding: deOnboarding,
+        milestone: deMilestone,
+        chapter: deChapter,
+        settings: deSettings,
+        sync: deSync,
+        timeline: deTimeline,
+        search: deSearch,
+        help: deHelp,
+        stats: deStats,
+        import: deImport,
+        dayglance: deDayglance,
+      },
+      es: {
+        common: esCommon,
+        onboarding: esOnboarding,
+        milestone: esMilestone,
+        chapter: esChapter,
+        settings: esSettings,
+        sync: esSync,
+        timeline: esTimeline,
+        search: esSearch,
+        help: esHelp,
+        stats: esStats,
+        import: esImport,
+        dayglance: esDayglance,
+      },
+      it: {
+        common: itCommon,
+        onboarding: itOnboarding,
+        milestone: itMilestone,
+        chapter: itChapter,
+        settings: itSettings,
+        sync: itSync,
+        timeline: itTimeline,
+        search: itSearch,
+        help: itHelp,
+        stats: itStats,
+        import: itImport,
+        dayglance: itDayglance,
+      },
+      pt: {
+        common: ptCommon,
+        onboarding: ptOnboarding,
+        milestone: ptMilestone,
+        chapter: ptChapter,
+        settings: ptSettings,
+        sync: ptSync,
+        timeline: ptTimeline,
+        search: ptSearch,
+        help: ptHelp,
+        stats: ptStats,
+        import: ptImport,
+        dayglance: ptDayglance,
       },
     },
     interpolation: {

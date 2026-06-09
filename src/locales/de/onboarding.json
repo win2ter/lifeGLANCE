@@ -1,0 +1,22 @@
+{
+  "tagline": "Dein Leben auf einen Blick.",
+  "begin": "loslegen →",
+  "step2Eyebrow": "Schritt 2 von 4 — deine Vergangenheit",
+  "step2Prompt": "Was war eines der schönsten Ereignisse in deinem bisherigen Leben?",
+  "step2Placeholder": "z. B. Wir haben geheiratet",
+  "step3Eyebrow": "Schritt 3 von 4 — deine Zukunft",
+  "step3Prompt": "Worauf freust du dich in der Zukunft am meisten?",
+  "step3Placeholder": "z. B. Reise nach Japan",
+  "step4Eyebrow": "Schritt 4 von 4 — deine Timeline",
+  "step4Prompt": "Dein Leben auf einen Blick.",
+  "approximateIsFine": "ungefähres Datum ist in Ordnung",
+  "errorPastEvent": "Dies sollte ein vergangenes Ereignis sein.",
+  "errorFutureEvent": "Dies sollte ein zukünftiges Ereignis sein.",
+  "placeOnTimeline": "auf meine Timeline setzen →",
+  "lookingBack": "Blick zurück",
+  "lookingAhead": "Blick voraus",
+  "noPastEvent": "kein vergangenes Ereignis hinzugefügt",
+  "noFutureEvent": "kein zukünftiges Ereignis hinzugefügt",
+  "openTimeline": "meine Timeline öffnen →",
+  "keyboardShortcutHint": "drücke jederzeit <kbd>?</kbd> für Tastenkürzel"
+}
