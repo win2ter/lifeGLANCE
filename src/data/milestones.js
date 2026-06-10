@@ -74,6 +74,10 @@ export async function loadMilestones() {
 
 export async function addMilestone(data) {
   const m = buildMilestone(data)
+  // Stamp reference IDs to match the local blob-key convention so the eventual
+  // GLANCEvault cutover is a transport swap with no entity migration.
+  if (m.media_type && m.media_id  == null) m.media_id  = m.id
+  if (m.has_photo  && m.photo_id  == null) m.photo_id  = `${m.id}-photo`
   await dbAdd(m)
   return m
 }
