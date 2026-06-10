@@ -40,6 +40,6 @@
   "deleteSeries": "eliminar serie",
   "trackedInDayglance": "seguido en dayGLANCE",
   "completedInDayglance": "completado en dayGLANCE",
-  "photoSyncedFromDevice": "Foto sincronizada desde otro dispositivo",
-  "mediaSyncedFromDevice": "Archivo multimedia sincronizado desde otro dispositivo"
+  "photoSyncedFromDevice": "📷 Foto almacenada en el dispositivo de origen",
+  "mediaSyncedFromDevice": "🎬 Audio/vídeo almacenado en el dispositivo de origen"
 }
