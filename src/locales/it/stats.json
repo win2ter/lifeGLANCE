@@ -1,0 +1,15 @@
+{
+  "title": "statistiche della timeline",
+  "noMilestones": "nessun traguardo per ora",
+  "milestones": "traguardi",
+  "inThePast": "nel passato",
+  "upcoming": "in arrivo",
+  "timeTracked": "tempo tracciato",
+  "longestGap": "intervallo più lungo",
+  "busiestYear": "anno più attivo",
+  "byDecade": "per decennio",
+  "pastLabel": "← passato",
+  "futureLabel": "futuro →",
+  "milestoneCount_one": "{{count}} traguardo",
+  "milestoneCount_other": "{{count}} traguardi"
+}

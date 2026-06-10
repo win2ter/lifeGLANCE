@@ -1,0 +1,15 @@
+{
+  "title": "Zeitleisten-Statistiken",
+  "noMilestones": "noch keine Meilensteine",
+  "milestones": "Meilensteine",
+  "inThePast": "in der Vergangenheit",
+  "upcoming": "bevorstehend",
+  "timeTracked": "erfasste Zeit",
+  "longestGap": "längste Lücke",
+  "busiestYear": "aktivstes Jahr",
+  "byDecade": "nach Jahrzehnt",
+  "pastLabel": "← Vergangenheit",
+  "futureLabel": "Zukunft →",
+  "milestoneCount_one": "{{count}} Meilenstein",
+  "milestoneCount_other": "{{count}} Meilensteine"
+}

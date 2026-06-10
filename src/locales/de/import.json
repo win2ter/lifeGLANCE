@@ -1,0 +1,16 @@
+{
+  "title": "aus Kalender importieren",
+  "notice": "Der Import ist für Lebensmeilensteine gedacht — Jahrestage, Abschlüsse, Reisen. Deaktiviere, was nicht passt.",
+  "allDayEventsFound_one": "{{count}} ganztägiges Ereignis gefunden",
+  "allDayEventsFound_other": "{{count}} ganztägige Ereignisse gefunden",
+  "timedEventsSkipped_one": "· {{count}} zeitgesteuertes Ereignis übersprungen",
+  "timedEventsSkipped_other": "· {{count}} zeitgesteuerte Ereignisse übersprungen",
+  "noEvents": "Keine ganztägigen Ereignisse in dieser Datei gefunden.",
+  "deselectAll": "alle abwählen",
+  "selectAll": "alle auswählen",
+  "titleColumn": "Titel",
+  "categoryColumn": "Kategorie",
+  "annual": "jährlich",
+  "importButton_one": "{{count}} Meilenstein importieren",
+  "importButton_other": "{{count}} Meilensteine importieren"
+}

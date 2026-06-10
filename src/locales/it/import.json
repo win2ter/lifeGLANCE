@@ -1,0 +1,16 @@
+{
+  "title": "importa dal calendario",
+  "notice": "L'importazione è pensata per i traguardi di vita — anniversari, lauree, viaggi. Deseleziona ciò che non si adatta.",
+  "allDayEventsFound_one": "{{count}} evento giornaliero trovato",
+  "allDayEventsFound_other": "{{count}} eventi giornalieri trovati",
+  "timedEventsSkipped_one": "· {{count}} evento con orario ignorato",
+  "timedEventsSkipped_other": "· {{count}} eventi con orario ignorati",
+  "noEvents": "Nessun evento giornaliero trovato in questo file.",
+  "deselectAll": "deseleziona tutto",
+  "selectAll": "seleziona tutto",
+  "titleColumn": "titolo",
+  "categoryColumn": "categoria",
+  "annual": "annuale",
+  "importButton_one": "importa {{count}} traguardo",
+  "importButton_other": "importa {{count}} traguardi"
+}

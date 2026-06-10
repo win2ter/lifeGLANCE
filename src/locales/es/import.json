@@ -1,0 +1,16 @@
+{
+  "title": "importar desde el calendario",
+  "notice": "La importación está diseñada para hitos de vida — aniversarios, graduaciones, viajes. Desmarca lo que no corresponda.",
+  "allDayEventsFound_one": "{{count}} evento de día completo encontrado",
+  "allDayEventsFound_other": "{{count}} eventos de día completo encontrados",
+  "timedEventsSkipped_one": "· {{count}} evento con hora omitido",
+  "timedEventsSkipped_other": "· {{count}} eventos con hora omitidos",
+  "noEvents": "No se encontraron eventos de día completo en este archivo.",
+  "deselectAll": "deseleccionar todo",
+  "selectAll": "seleccionar todo",
+  "titleColumn": "título",
+  "categoryColumn": "categoría",
+  "annual": "anual",
+  "importButton_one": "importar {{count}} hito",
+  "importButton_other": "importar {{count}} hitos"
+}
