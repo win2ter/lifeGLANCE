@@ -106,6 +106,23 @@ export async function updateMilestone(id, updates, existing) {
   return m
 }
 
+// One-time backfill: stamp media_id / photo_id on existing milestones that
+// pre-date the schema addition. Skips milestones that already have values or
+// have no media. thumbnail_id intentionally left null for all records.
+export async function backfillMediaIds() {
+  const all = await dbGetAll()
+  for (const m of all) {
+    const needsMedia = m.media_type && m.media_id  == null
+    const needsPhoto = m.has_photo  && m.photo_id  == null
+    if (!needsMedia && !needsPhoto) continue
+    await dbPut({
+      ...m,
+      ...(needsMedia ? { media_id: m.id }             : {}),
+      ...(needsPhoto ? { photo_id: `${m.id}-photo` }  : {}),
+    })
+  }
+}
+
 export async function deleteMilestone(id) {
   writeMilestoneTombstone(id)
   await dbDelete(id)
