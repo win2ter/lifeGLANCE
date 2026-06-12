@@ -28,6 +28,8 @@ import AutoBackupModal from '../sync/AutoBackupModal'
 import { dbPutMedia, dbPutPhoto, dbDeletePhoto, dbGetPhoto, dbPut } from '../../data/db'
 import { parseIcs }      from '../../utils/icsParser'
 import * as audio from '../../utils/audio'
+import { useIdleMode } from '../../hooks/useIdleMode.js'
+import { relativeLabel, ageAtDate } from '../../utils/dates'
 import { useIntentPoller } from '../../hooks/useIntentPoller.js'
 import { emitCreateForMilestone, emitRescheduledNotify, emitStateNotify, isIntegrationEnabled } from '../../lib/intentsTransport.js'
 import { appendActivityEntry } from '../../lib/intentsActivityLog.js'
@@ -44,6 +46,15 @@ const TEXT_SIZES = {
 }
 
 const ZOOM_ANIM_MS = 420
+
+// Idle / "watch" mode: ambient auto-tour of the timeline.
+const IDLE_DEFAULT_TIMEOUT_MS = 60000
+const IDLE_TIMEOUT_OPTIONS = [
+  { ms: 60000,  label: '1m'  },
+  { ms: 120000, label: '2m'  },
+  { ms: 300000, label: '5m'  },
+  { ms: 600000, label: '10m' },
+]
 
 export default function TimelineView({ milestones, setMilestones, chapters, setChapters, syncStatus, syncError, syncHalted, lastSynced, onOpenCloudSync }) {
   const { t } = useTranslation('timeline')
@@ -107,6 +118,12 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
   )
   const [ultraCompact,  setUltraCompact]  = useState(
     () => window.matchMedia('(max-height: 500px)').matches
+  )
+  const [idleAutoStart, setIdleAutoStart] = useState(
+    () => localStorage.getItem('lifeglance-idle-autostart') !== 'off'
+  )
+  const [idleTimeoutMs, setIdleTimeoutMs] = useState(
+    () => Number(localStorage.getItem('lifeglance-idle-timeout')) || IDLE_DEFAULT_TIMEOUT_MS
   )
   const [clustering,    setClustering]    = useState(
     () => localStorage.getItem('lifeglance-clustering') !== 'false'
@@ -1249,8 +1266,157 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
     return new Date(iso).toLocaleString('default', { month: 'short', year: 'numeric', timeZone: 'UTC' })
   }
 
+  // ── Idle / "watch" mode ───────────────────────────────────────────────────────
+  // Auto-tours the timeline at the 'weeks' zoom, hopping through the on-screen
+  // milestones (respecting active filters) with the onboarding ambient playing.
+  const viewRef    = useRef({ zoom, panMs, clustering })
+  viewRef.current  = { zoom, panMs, clustering }
+  const preIdleRef = useRef(null)
+
+  // Watch-mode theme: 'all' (full timeline — also the auto-start default),
+  // 'year', 'future', 'photos', or 'chapter:<id>'. The event list the tour walks
+  // is derived from it. Reset to 'all' on exit so auto-start is always the full
+  // timeline.
+  const [watchTheme,    setWatchTheme]    = useState('all')
+  const [watchMenuOpen, setWatchMenuOpen] = useState(false)
+  const [watchStartToken, setWatchStartToken] = useState(0)
+
+  const idleEvents = React.useMemo(() => {
+    const sorted = [...filteredMilestones].sort((a, b) => new Date(a.date) - new Date(b.date))
+    const now = Date.now()
+    if (watchTheme === 'year') {
+      const y = new Date().getFullYear()
+      return sorted.filter(m => new Date(m.date).getFullYear() === y)
+    }
+    if (watchTheme === 'future') return sorted.filter(m => new Date(m.date).getTime() >= now)
+    if (watchTheme === 'photos') return sorted.filter(m => m.has_photo)
+    if (watchTheme.startsWith('chapter:')) {
+      const ch = chapters.find(c => c.id === watchTheme.slice(8))
+      return ch ? sorted.filter(m => ch.milestoneIds.includes(m.id)) : sorted
+    }
+    return sorted
+  }, [filteredMilestones, watchTheme, chapters])
+
+  // Theme options for the watch menu, with live counts (zero-count ones disabled).
+  const watchThemeOptions = React.useMemo(() => {
+    const now = Date.now()
+    const y   = new Date().getFullYear()
+    const opts = [
+      { key: 'all',    label: t('watchThemeAll'),    count: filteredMilestones.length },
+      { key: 'year',   label: t('watchThemeYear'),   count: filteredMilestones.filter(m => new Date(m.date).getFullYear() === y).length },
+      { key: 'future', label: t('watchThemeFuture'), count: filteredMilestones.filter(m => new Date(m.date).getTime() >= now).length },
+      { key: 'photos', label: t('watchThemePhotos'), count: filteredMilestones.filter(m => m.has_photo).length },
+    ]
+    chapters.forEach(c => {
+      const count = filteredMilestones.filter(m => c.milestoneIds.includes(m.id)).length
+      if (count > 0) opts.push({ key: 'chapter:' + c.id, label: c.title, count, color: c.color })
+    })
+    return opts
+  }, [filteredMilestones, chapters, t])
+
+  function startWatchTheme(key) {
+    setWatchTheme(key)
+    setWatchMenuOpen(false)
+    setWatchStartToken(n => n + 1)   // fires the start effect even if the theme is unchanged
+  }
+  const anyModalOpen =
+    addOpen || !!detail || settingsOpen || helpOpen || kbdOpen || searchOpen ||
+    chapterSheetOpen || summaryOpen || onThisDayOpen || activityLogOpen ||
+    cloudSyncOpen || autoBackupOpen || !!icsImport || !!mediaConfirm ||
+    !!editChapter || !!drilledChapter || zoomOpen || filterOpen
+
+  const idle = useIdleMode({
+    enabled: idleAutoStart,
+    timeoutMs: idleTimeoutMs,
+    events: idleEvents,
+    blocked: anyModalOpen || isEmpty,
+    onEnter: () => {
+      preIdleRef.current = { ...viewRef.current }
+      setSelectedId(null)
+      setHighlightsActive(false)
+      setZoom('weeks')
+      // Unclusters so every event is visited individually (clustered events would
+      // otherwise be hidden behind a badge and skipped). Bare setter — does not
+      // persist; the saved value is restored on exit.
+      setClustering(false)
+    },
+    onHop: (ev) => {
+      timelineRef.current?.panToMs(new Date(ev.date).getTime())
+      // Shift the ambient melody's register by position in the tour: older events
+      // play lower, recent ones higher. Octave steps keep it in tune.
+      if (idleEvents.length > 1) {
+        const ts = idleEvents.map(e => new Date(e.date).getTime())
+        const lo = Math.min(...ts), hi = Math.max(...ts)
+        const p  = hi > lo ? (new Date(ev.date).getTime() - lo) / (hi - lo) : 0.5
+        audio.setMelodyTranspose(Math.pow(2, Math.round((p - 0.5) * 2)))
+      } else {
+        audio.setMelodyTranspose(1)
+      }
+    },
+    // Linger longer on richer events (note and/or photo) so they can be read /
+    // the photo's slow zoom can be appreciated.
+    dwellFor: (ev) => 5000 + (ev.note ? 2500 : 0) + (ev.has_photo ? 3000 : 0),
+    onExit: () => {
+      const prev = preIdleRef.current
+      preIdleRef.current = null
+      if (prev) {
+        setZoom(prev.zoom)
+        setClustering(prev.clustering)
+        // panToMs (not a bare setPanMs) cancels any in-flight hop animation so
+        // it can't overwrite the restored position on the next frame.
+        timelineRef.current?.panToMs(Date.now() + prev.panMs)
+      }
+      setWatchTheme('all')   // auto-start always tours the full timeline
+    },
+  })
+
+  // Begin a themed tour after startWatchTheme bumps the token. By the time this
+  // effect runs the render has applied the theme and the hook's events ref points
+  // at the themed list, so idle.start() tours the right events (works even when
+  // the chosen theme equals the current one).
+  useEffect(() => {
+    if (watchStartToken === 0) return
+    idle.start(true)
+  }, [watchStartToken]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Close the watch menu on any outside click.
+  useEffect(() => {
+    if (!watchMenuOpen) return
+    const close = () => setWatchMenuOpen(false)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [watchMenuOpen])
+
+  // Load the current event's photo (if any) for the watch-mode backdrop.
+  const [idlePhotoUrl, setIdlePhotoUrl] = useState(null)
+  const idleEventId = idle.currentEvent?.id
+  const idleHasPhoto = !!idle.currentEvent?.has_photo
+  useEffect(() => {
+    if (!idle.active || !idleHasPhoto || !idleEventId) { setIdlePhotoUrl(null); return }
+    let url, cancelled = false
+    dbGetPhoto(idleEventId).then(res => {
+      if (cancelled || !res) return
+      url = URL.createObjectURL(res.blob)
+      setIdlePhotoUrl(url)
+    }).catch(() => {})
+    return () => { cancelled = true; if (url) URL.revokeObjectURL(url) }
+  }, [idle.active, idleEventId, idleHasPhoto])
+
+  // While watching, spotlight the current event's card (built-in glow + scale).
+  const timelineHighlighted = idle.active
+    ? new Set([idle.currentEvent?.id].filter(Boolean))
+    : drillHighlighted
+
+  // Tour progress (oldest → newest) for the watch-mode progress bar.
+  const idleIndex = idle.active && idle.currentEvent
+    ? idleEvents.findIndex(e => e.id === idle.currentEvent.id)
+    : -1
+  const idleProgress = idleIndex >= 0 && idleEvents.length > 0
+    ? (idleIndex + 1) / idleEvents.length
+    : 0
+
   return (
-    <div className="timeline-view">
+    <div className={`timeline-view${idle.active ? ' idle-active' : ''}`}>
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div
         className="timeline-header"
@@ -1396,6 +1562,28 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
 
         {/* Right: stats + settings + help + sync indicator */}
         <div className="header-right">
+          {filteredMilestones.length > 0 && (
+            <>
+              <div className="watch-menu-wrap" onClick={e => e.stopPropagation()}>
+                <button className="action-link" onClick={() => setWatchMenuOpen(o => !o)}
+                  title={t('watchTitle')}>{t('watchBtn')}</button>
+                {watchMenuOpen && (
+                  <div className="watch-menu">
+                    {watchThemeOptions.map(opt => (
+                      <button key={opt.key} className="watch-menu-item"
+                        disabled={opt.count === 0}
+                        onClick={() => startWatchTheme(opt.key)}>
+                        {opt.color && <span className="watch-menu-dot" style={{ background: opt.color }} />}
+                        <span className="watch-menu-label">{opt.label}</span>
+                        <span className="watch-menu-count">{opt.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <span className="action-sep">|</span>
+            </>
+          )}
           <button className="action-link" onClick={() => setSummaryOpen(true)}>{t('statsBtn')}</button>
           <span className="action-sep">|</span>
           <button className="action-link" onClick={() => setSettingsOpen(true)}>{t('settingsBtn')}</button>
@@ -1429,6 +1617,13 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
 
       {/* ── Body ───────────────────────────────────────────────────────────── */}
       <div className="timeline-body" ref={bodyRef}>
+        {/* Watch-mode photo backdrop — sits behind the timeline (dimmed + Ken Burns) */}
+        {idle.active && idlePhotoUrl && (
+          <div className="idle-photo-layer" aria-hidden="true">
+            <img key={idlePhotoUrl} className="idle-photo" src={idlePhotoUrl} alt="" />
+            <div className="idle-photo-scrim" />
+          </div>
+        )}
         {!isEmpty && (
           <StatsPanel
             past={past} future={future}
@@ -1452,7 +1647,8 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
             zoom={zoom}
             textSize={textSize}
             customHalfMs={customHalfMs}
-            highlightedIds={drillHighlighted}
+            highlightedIds={timelineHighlighted}
+            highlightScale={idle.active ? 1.22 : 1.06}
             onMilestoneClick={handleMilestoneClick}
             onChapterClick={handleChapterClick}
             onChapterDoubleClick={openChapterEdit}
@@ -1564,6 +1760,53 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
         </button>
       </div>
 
+      {/* ── Idle / watch overlay (visual only — any input exits) ───────────── */}
+      {idle.active && (
+        <div className="idle-overlay" aria-hidden="true">
+          {/* Top-left: brand + exit hint */}
+          <div className="idle-brand">
+            <div className="logo logo-sm">
+              <span className="logo-life">life</span>
+              <span className="logo-glance">GLANCE</span>
+            </div>
+            <div className="idle-hint">{t('idleExitHint')}</div>
+          </div>
+
+          {/* Top-right: chapter · note · age + relative (title/date stay on the card) */}
+          {idle.currentEvent && (() => {
+            const ev      = idle.currentEvent
+            const chapter = chapters.find(c => c.milestoneIds?.includes(ev.id))
+            const age     = birthday ? ageAtDate(birthday, ev.date) : null
+            const isPastEv = new Date(ev.date) < new Date()
+            return (
+              <div className="idle-caption" key={ev.id}>
+                {chapter && (
+                  <div className="idle-caption-chapter">
+                    <span className="idle-caption-dot" style={{ background: chapter.color }} />
+                    {chapter.title}
+                  </div>
+                )}
+                {ev.note && <div className="idle-caption-note">{ev.note}</div>}
+                <div className="idle-caption-meta">
+                  {age != null && (
+                    <span>{t(isPastEv ? 'idleAgeWas' : 'idleAgeWillBe', { age })}</span>
+                  )}
+                  {age != null && <span className="idle-meta-sep">·</span>}
+                  <span>{relativeLabel(ev.date, ev.date_precision)}</span>
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Bottom: tour progress (oldest → newest) */}
+          {idleEvents.length > 1 && (
+            <div className="idle-progress">
+              <div className="idle-progress-fill" style={{ width: `${idleProgress * 100}%` }} />
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Sheets ─────────────────────────────────────────────────────────── */}
       {addOpen && (
         <AddMilestoneSheet
@@ -1633,6 +1876,15 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
             setClustering(v)
             localStorage.setItem('lifeglance-clustering', String(v))
           }}
+          idleAutoStart={idleAutoStart} onIdleAutoStartChange={v => {
+            setIdleAutoStart(v)
+            localStorage.setItem('lifeglance-idle-autostart', v ? 'on' : 'off')
+          }}
+          idleTimeoutMs={idleTimeoutMs} onIdleTimeoutChange={ms => {
+            setIdleTimeoutMs(ms)
+            localStorage.setItem('lifeglance-idle-timeout', String(ms))
+          }}
+          idleTimeoutOptions={IDLE_TIMEOUT_OPTIONS}
           birthday={birthday}       onBirthdayChange={v => {
             setBirthday(v)
             localStorage.setItem('lifeglance-birthday', v)

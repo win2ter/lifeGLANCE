@@ -578,6 +578,43 @@ button, input, select, textarea {
 .zoom-dropdown-item:hover { color: var(--text-dim); background: rgba(200,169,110,0.06); }
 .zoom-dropdown-item.active { color: var(--amber); background: rgba(200,169,110,0.1); }
 
+/* ─── Watch-mode theme menu (header) ─────────────────────────────────────────── */
+.watch-menu-wrap { position: relative; }
+.watch-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 190px;
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  z-index: 50;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.watch-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.8rem;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-family: var(--font);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  text-align: left;
+}
+.watch-menu-item:first-child { border-top: none; }
+.watch-menu-item:hover:not(:disabled) { color: var(--text-dim); background: rgba(200,169,110,0.06); }
+.watch-menu-item:disabled { opacity: 0.35; cursor: default; }
+.watch-menu-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.watch-menu-label { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.watch-menu-count { color: var(--text-muted); opacity: 0.55; font-variant-numeric: tabular-nums; }
+
 /* ─── Zoom row (tabs centered; indicator floats right without shifting tabs) */
 .zoom-row {
   position: relative;
@@ -1311,6 +1348,174 @@ button, input, select, textarea {
   cursor: crosshair;
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* ─── Idle / "watch" mode ───────────────────────────────────────────────────── */
+/* Fade the chrome out so the timeline reads like an ambient display. The SVG
+   timeline itself stays at full opacity. */
+.timeline-view.idle-active .timeline-header,
+.timeline-view.idle-active .timeline-bottom,
+.timeline-view.idle-active .minimap-bar,
+.timeline-view.idle-active .stat-panels {
+  opacity: 0.05;
+  pointer-events: none;
+  transition: opacity 1s ease;
+}
+
+.idle-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  pointer-events: none;       /* visual only — any input exits via window listener */
+}
+
+/* Photo backdrop: full-bleed behind the timeline, dimmed + blurred with a slow
+   Ken Burns drift so the glowing cards float over a soft memory. Lives inside
+   .timeline-body; the timeline sits above it via z-index. */
+.idle-photo-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.timeline-view.idle-active .timeline-zoom-wrap {
+  position: relative;
+  z-index: 1;
+}
+.idle-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: blur(2px) brightness(0.42) saturate(1.05);
+  opacity: 0;
+  animation: idle-photo-in 1.4s ease forwards, idle-ken-burns 24s ease-out forwards;
+}
+@keyframes idle-photo-in {
+  to { opacity: 1; }
+}
+@keyframes idle-ken-burns {
+  from { transform: scale(1.08) translate(0, 0); }
+  to   { transform: scale(1.2) translate(-1.5%, -1.5%); }
+}
+.idle-photo-scrim {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at center, rgba(13,15,22,0.15) 0%, rgba(13,15,22,0.62) 100%),
+    linear-gradient(to bottom, rgba(13,15,22,0.5) 0%, rgba(13,15,22,0.3) 42%, rgba(13,15,22,0.72) 100%);
+}
+
+/* Top-left brand + exit hint — aligned with where the header logo sits. */
+.idle-brand {
+  position: absolute;
+  top: 0.6rem;
+  left: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  animation: idle-fade-in 0.6s ease;
+}
+@keyframes idle-fade-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Top-center current-event card. */
+.idle-caption {
+  position: absolute;
+  top: 0.6rem;
+  right: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.4rem;
+  max-width: min(42vw, 460px);
+  padding: 0.55rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: rgba(13, 15, 22, 0.78);
+  backdrop-filter: blur(8px);
+  animation: idle-caption-in 0.6s ease;
+}
+@keyframes idle-caption-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.idle-caption-chapter {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.idle-caption-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.idle-caption-note {
+  color: var(--text);
+  font-size: 0.9rem;
+  line-height: 1.45;
+  text-align: center;
+  /* Clamp long notes so they don't dominate the screen. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.idle-caption-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+.idle-meta-sep { color: rgba(200, 169, 110, 0.4); }
+
+/* Tour progress bar along the bottom edge. */
+.idle-progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: rgba(232, 224, 208, 0.08);
+}
+.idle-progress-fill {
+  height: 100%;
+  background: var(--amber);
+  opacity: 0.55;
+  transition: width 0.45s ease;
+}
+
+.idle-hint {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  animation: idle-hint-pulse 3s ease-in-out infinite;
+}
+@keyframes idle-hint-pulse {
+  0%, 100% { opacity: 0.25; }
+  50%      { opacity: 0.6; }
+}
+
+/* Settings: idle timeout row */
+.settings-idle-timeout {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
 }
 
 /* ─── Settings Modal ────────────────────────────────────────────────────────── */

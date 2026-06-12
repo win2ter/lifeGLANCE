@@ -67,7 +67,7 @@ function wrapTitle(text, maxChars) {
 }
 
 const Timeline = forwardRef(function Timeline(
-  { milestones, chapters = [], zoom, textSize = 'normal', onMilestoneClick, onChapterClick, onChapterDoubleClick, customHalfMs = 0, highlightedIds, panMs, onPanMs, viewMode = 'all', onClusterClick, clustering = true, birthday = '', newlyAddedId = null, ultraCompact = false },
+  { milestones, chapters = [], zoom, textSize = 'normal', onMilestoneClick, onChapterClick, onChapterDoubleClick, customHalfMs = 0, highlightedIds, highlightScale = 1.06, panMs, onPanMs, viewMode = 'all', onClusterClick, clustering = true, birthday = '', newlyAddedId = null, ultraCompact = false },
   ref
 ) {
   const { t } = useTranslation('timeline')
@@ -575,7 +575,7 @@ const Timeline = forwardRef(function Timeline(
           const cx = cardX + CARD_W / 2
           const cy = cardY + cardH / 2
           const groupStyle = isHL ? {
-            transform: `translate(${cx}px,${cy}px) scale(1.06) translate(${-cx}px,${-cy}px)`,
+            transform: `translate(${cx}px,${cy}px) scale(${highlightScale}) translate(${-cx}px,${-cy}px)`,
             transition: 'transform 0.22s ease',
           } : {}
 
