@@ -4,11 +4,12 @@
  * All play functions are no-ops when muted or before init().
  */
 
-let ctx           = null
-let ambientNodes  = []
-let ambientActive = false
-let melodyTimer   = null
-let _muted        = localStorage.getItem('lifeglance-sound') === 'off'
+let ctx             = null
+let ambientNodes    = []
+let ambientActive   = false
+let melodyTimer     = null
+let melodyTranspose = 1   // frequency multiplier for the ambient melody (watch mode)
+let _muted          = localStorage.getItem('lifeglance-sound') === 'off'
 
 // ── Context ───────────────────────────────────────────────────────────────────
 
@@ -151,8 +152,16 @@ function scheduleMelody() {
   if (!ambientActive || _muted) return
   const freq = PENTATONIC[Math.floor(Math.random() * PENTATONIC.length)]
   const vel  = 0.035 + Math.random() * 0.025   // dynamic variation
-  playPianoNote(freq, vel, 1.6)
+  playPianoNote(freq * melodyTranspose, vel, 1.6)
   melodyTimer = setTimeout(scheduleMelody, 1500 + Math.random() * 3500)
+}
+
+/**
+ * Shift the ambient melody's register (watch mode). Pass an octave-based factor
+ * (e.g. 0.5, 1, 2) so the pitch class stays in the pentatonic scale and in tune.
+ */
+export function setMelodyTranspose(factor) {
+  melodyTranspose = factor > 0 ? factor : 1
 }
 
 export function startAmbient() {
@@ -199,6 +208,7 @@ export function startAmbient() {
 
 function _fadeOutAmbient() {
   ambientActive = false
+  melodyTranspose = 1
   clearTimeout(melodyTimer)
   melodyTimer = null
 

@@ -21,6 +21,8 @@ export default function SettingsModal({
   textSize, onTextSizeChange,
   categories, onCategoriesChange,
   clustering, onClusteringChange,
+  idleAutoStart, onIdleAutoStartChange,
+  idleTimeoutMs, onIdleTimeoutChange, idleTimeoutOptions = [],
   birthday, onBirthdayChange,
   milestones,
   onExportImage, onSaveBackup, onRestoreFile, onImportIcsFile,
@@ -127,6 +129,29 @@ export default function SettingsModal({
               checked={soundOn}
               onChange={e => { setSoundOn(e.target.checked); setMuted(!e.target.checked) }} />
           </label>
+          {onIdleAutoStartChange && (
+            <>
+              <label className="settings-toggle-row">
+                <span className="settings-toggle-label">{t('idleAutoStart')}</span>
+                <input type="checkbox" className="settings-toggle"
+                  checked={idleAutoStart}
+                  onChange={e => onIdleAutoStartChange(e.target.checked)} />
+              </label>
+              {idleAutoStart && idleTimeoutOptions.length > 0 && (
+                <div className="settings-idle-timeout">
+                  <span className="settings-toggle-label">{t('idleTimeout')}</span>
+                  <div className="zoom-tabs">
+                    {idleTimeoutOptions.map(opt => (
+                      <button key={opt.ms}
+                        className={`zoom-tab ${idleTimeoutMs === opt.ms ? 'active' : ''}`}
+                        onClick={() => onIdleTimeoutChange(opt.ms)}>{opt.label}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <p className="settings-note" style={{ marginTop: '0.4rem' }}>{t('idleNote')}</p>
+            </>
+          )}
         </div>
 
         {/* ── Categories ────────────────────────────────────────────────── */}
