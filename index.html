@@ -21,6 +21,17 @@
         if (vp) vp.setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
       })();
     </script>
+    <script>
+      // Apply the saved colour theme before first paint to avoid a flash.
+      (function () {
+        try {
+          var t = localStorage.getItem('lifeglance-theme') === 'light' ? 'light' : 'dark';
+          document.documentElement.setAttribute('data-theme', t);
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', t === 'light' ? '#F4EFE4' : '#0F1117');
+        } catch (e) {}
+      })();
+    </script>
     <title>lifeGLANCE</title>
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" href="/favicon.ico" sizes="any" />

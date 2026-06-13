@@ -74,6 +74,76 @@
   --font: 'Courier Prime', 'Courier New', monospace;
 }
 
+/* ─── Light theme ────────────────────────────────────────────────────────────
+   Overrides the token palette for a warm "ink on parchment" light mode. Only
+   the tokens that differ are listed; derived tokens (--text-dim, --amber-dim,
+   etc.) recompute automatically from the channel overrides. --shadow-rgb is
+   left at the dark default so real shadows and modal scrims still read. */
+[data-theme="light"] {
+  /* Base colour channels (r, g, b) */
+  --bg-rgb: 244, 239, 228;
+  --bg-deep-rgb: 233, 226, 212;
+  --text-rgb: 43, 38, 31;
+  --amber-rgb: 125, 93, 34;
+  --rose-rgb: 184, 48, 72;
+  --success-rgb: 20, 116, 63;
+  --success-soft-rgb: 46, 138, 84;
+  --danger-strong-rgb: 188, 52, 52;
+  --danger-muted-rgb: 168, 70, 70;
+  --hilite-rgb: 43, 38, 31;   /* dark hairlines on light surfaces */
+
+  /* Surfaces */
+  --bg: #F4EFE4;
+  --bg-elevated: #FBF7EE;
+  --bg-deep: #E9E2D4;
+  --bg-gradient-top: #FCFAF3;
+
+  /* Brand / accent */
+  --amber: #7D5D22;
+  --amber-bright: #7C5B06;
+  --amber-light: #9A7530;
+  --amber-bg: #EEE3CC;
+  --indigo: #423A88;
+  --purple: #6E4FB0;
+  --teal: #287F7A;
+
+  /* Text */
+  --text: #2B261F;
+  --text-muted: rgba(var(--text-rgb), 0.55);
+
+  /* Borders — amber reads faint on cream, so lift the opacity a little */
+  --border: rgba(var(--amber-rgb), 0.32);
+
+  /* Status: danger / rose */
+  --rose: #B83048;
+  --rose-light: #A84242;
+  --rose-soft: #A8485C;
+  --danger-bg: #F7E7E7;
+  --danger-bg-strong: #F4DEDE;
+  --danger-bg-soft: #F6E2E2;
+  --danger-bg-dim: #F2E4E4;
+
+  /* Status: success / green */
+  --success: #14743F;
+  --success-bright: #1A6E38;
+  --success-muted: #3C8254;
+  --success-deep: #1E5A2A;
+  --success-accent: #0F6A37;
+  --success-bg: #E4F1E8;
+
+  /* Category / chart accents — darkened for contrast on a light background */
+  --cat-red: #CC3A3A;
+  --cat-orange: #B66416;
+  --cat-magenta: #A838B0;
+  --cat-pink: #BC3A7E;
+  --cat-blue: #2A6AB4;
+  --cat-violet: #6A4DC4;
+  --cat-indigo: #4A48C4;
+  --accent-blue: #2A6AB4;
+  --accent-blue-bright: #1E5AA4;
+  --accent-blue-bg: #DCE5F2;
+}
+
 /* ─── Reset ────────────────────────────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;

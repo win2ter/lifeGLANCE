@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react'
 import { useTranslation, Trans } from 'react-i18next'
 import { saveCategories } from '../../utils/colors'
 import { isMuted, setMuted } from '../../utils/audio'
+import { THEMES, getTheme, setTheme } from '../../utils/theme'
 import IntegrationSettings from '../dayglance/IntegrationSettings'
 
 const TEXT_SIZES_ALL = ['small', 'normal', 'big', 'bigger']
@@ -37,6 +38,7 @@ export default function SettingsModal({
   const [newLabel,   setNewLabel]   = useState('')
   const [newColor,   setNewColor]   = useState(COLOR_PALETTE[0])
   const [soundOn,    setSoundOn]    = useState(() => !isMuted())
+  const [theme,      setThemeState] = useState(getTheme)
   const [persisted,  setPersisted]  = useState(null)
   const fileRef    = useRef(null)
   const icsFileRef = useRef(null)
@@ -117,6 +119,16 @@ export default function SettingsModal({
         {/* ── Display ───────────────────────────────────────────────────── */}
         <div className="settings-section">
           <div className="settings-label">{t('displayLabel')}</div>
+          <div className="settings-idle-timeout">
+            <span className="settings-toggle-label">{t('themeLabel')}</span>
+            <div className="zoom-tabs">
+              {THEMES.map(m => (
+                <button key={m}
+                  className={`zoom-tab ${theme === m ? 'active' : ''}`}
+                  onClick={() => setThemeState(setTheme(m))}>{t(`theme_${m}`)}</button>
+              ))}
+            </div>
+          </div>
           <label className="settings-toggle-row">
             <span className="settings-toggle-label">{t('clustering')}</span>
             <input type="checkbox" className="settings-toggle"
