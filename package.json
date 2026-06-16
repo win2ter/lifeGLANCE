@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "build:mobile": "vite build && cap sync",
+    "assets": "capacitor-assets generate --android --ios",
     "android": "npm run build:mobile && cap open android",
     "ios": "npm run build:mobile && cap open ios"
   },
@@ -30,6 +31,7 @@
     "react-i18next": "^17.0.8"
   },
   "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
     "@capacitor/cli": "^8.4.0",
     "@vitejs/plugin-react": "^4.3.1",
     "fake-indexeddb": "^6.2.5",
