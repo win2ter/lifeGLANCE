@@ -1,5 +1,12 @@
 apply plugin: 'com.android.application'
 
+// Derive versionName/versionCode from package.json (e.g. 1.8.4 -> 10804).
+// Assumes a clean x.y.z version (no -beta suffix) and minor/patch < 100.
+def pkg = new groovy.json.JsonSlurper().parse(rootProject.file("../package.json"))
+def appVersionName = pkg.version as String
+def versionParts = appVersionName.tokenize('.')
+def appVersionCode = versionParts[0].toInteger() * 10000 + versionParts[1].toInteger() * 100 + versionParts[2].toInteger()
+
 android {
     namespace = "com.lifeglance.app"
     compileSdk = rootProject.ext.compileSdkVersion
@@ -7,8 +14,8 @@ android {
         applicationId "com.lifeglance.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "2.3.3"
+        versionCode appVersionCode
+        versionName appVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
