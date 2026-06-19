@@ -5,7 +5,8 @@ import { isNativePlatform, nativeWebdavFetch } from './nativeHttp.js';
 let engine = null;
 
 export const initSyncEngine = ({ milestonesRef, chaptersRef, setMilestones, setChapters,
-  setSyncStatus, setSyncError, setSyncHalted, setLastSynced, setShowPassphraseModal }) => {
+  setSyncStatus, setSyncError, setSyncHalted, setLastSynced, setShowPassphraseModal,
+  setVaultSkipped }) => {
 
   const savedSyncConfig = (() => {
     try { return JSON.parse(localStorage.getItem('lifeglance-cloud-sync-config') || 'null') } catch { return null }
@@ -50,8 +51,22 @@ export const initSyncEngine = ({ milestonesRef, chaptersRef, setMilestones, setC
     onError: (msg, code, isHardStop) => {
       // The engine calls onError(null, …) to clear a previous error; only treat
       // a real message as an error so the dot doesn't show rose during a sync.
+      // The KEY_MISMATCH code is mapped to a friendly, translatable message at
+      // the display layer (CloudSyncModal / TimelineView) so the raw crypto text
+      // is never shown. The engine has already aborted before any upload on a
+      // KEY_MISMATCH, so the account is never polluted with poison rows.
       setSyncError(msg ? { message: msg, code, isHardStop } : null);
       if (isHardStop) setSyncHalted(true);
+    },
+    // Per-row quarantine (GLANCEvault transport): fired once per cycle that
+    // skipped undecryptable rows. We call engine.sync() directly (never compose
+    // our own pull/push cycle), so this config callback fires for us — we just
+    // surface the count. A transient toast + a durable amber note in the sync
+    // settings read from this state.
+    onRowsSkipped: (count, entityIds) => {
+      if (count > 0) {
+        setVaultSkipped?.({ count, entityIds: entityIds ?? [], at: Date.now() });
+      }
     },
     onLastSyncedChange: setLastSynced,
     onPassphraseRequired: () => setShowPassphraseModal(true),

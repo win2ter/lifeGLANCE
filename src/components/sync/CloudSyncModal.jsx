@@ -54,7 +54,7 @@ function SyncDot({ syncStatus, syncError, syncHalted }) {
   )
 }
 
-export default function CloudSyncModal({ syncStatus, syncError, syncHalted, lastSynced, onClose }) {
+export default function CloudSyncModal({ syncStatus, syncError, syncHalted, lastSynced, vaultSkipped, onClose }) {
   const { t } = useTranslation('sync')
   const { t: tc } = useTranslation('common')
   const engine = getSyncEngine()
@@ -73,6 +73,13 @@ export default function CloudSyncModal({ syncStatus, syncError, syncHalted, last
   const [saving,      setSaving]      = useState(false)
 
   const isExisting = !!existingConfig
+
+  // KEY_MISMATCH (wrong sync passphrase/salt) is surfaced with a clear, actionable
+  // message instead of the raw crypto text. The engine aborts before any upload on
+  // this code, so the account is never polluted.
+  const errorText = syncError
+    ? (syncError.code === 'KEY_MISMATCH' ? t('wrongPassphrase') : syncError.message)
+    : null
 
   useEffect(() => {
     const handler = (e) => { if (e.key === 'Escape') onClose() }
@@ -140,7 +147,16 @@ export default function CloudSyncModal({ syncStatus, syncError, syncHalted, last
       onClose()
     } catch (err) {
       console.error('[sync] save failed:', err)
-      setTestResult({ ok: false, message: t('saveFailed', { message: err.message }) })
+      if (err?.code === 'KEY_MISMATCH') {
+        // Enabling/bootstrapping with the wrong passphrase: the engine verifies the
+        // derived key before uploading anything, so nothing was written remotely.
+        // Roll back to the prior config so we don't leave sync half-enabled, and
+        // show the clear message instead of the raw crypto error.
+        try { engine?.setConfig(existingConfig) } catch { /* best-effort rollback */ }
+        setTestResult({ ok: false, message: t('wrongPassphrase') })
+      } else {
+        setTestResult({ ok: false, message: t('saveFailed', { message: err.message }) })
+      }
     } finally {
       setSaving(false)
     }
@@ -173,7 +189,7 @@ export default function CloudSyncModal({ syncStatus, syncError, syncHalted, last
             color: 'var(--rose)',
             fontSize: '0.82rem',
           }}>
-            <strong>{t('syncHalted')}</strong> {syncError.message}
+            <strong>{t('syncHalted')}</strong> {errorText}
             {syncError.code && <span style={{ opacity: 0.7, marginLeft: '0.5rem' }}>[{syncError.code}]</span>}
           </div>
         )}
@@ -189,7 +205,24 @@ export default function CloudSyncModal({ syncStatus, syncError, syncHalted, last
             color: 'var(--rose)',
             fontSize: '0.8rem',
           }}>
-            {syncError.message}
+            {errorText}
+          </div>
+        )}
+
+        {/* Per-row quarantine — durable amber note that some rows couldn't be read
+            (e.g. a partial key mismatch). Persists after the transient toast dismisses.
+            The engine retries quarantined rows automatically on later sync cycles. */}
+        {vaultSkipped?.count > 0 && (
+          <div style={{
+            background: 'var(--danger-bg-dim)',
+            border: '1px solid var(--amber-bright)',
+            borderRadius: '6px',
+            padding: '0.6rem 1rem',
+            marginBottom: '0.75rem',
+            color: 'var(--amber-bright)',
+            fontSize: '0.8rem',
+          }}>
+            {t('vaultSkippedNote', { count: vaultSkipped.count })}
           </div>
         )}
 
