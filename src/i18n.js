@@ -93,19 +93,6 @@ import zhCNStats from './locales/zh_CN/stats.json'
 import zhCNImport from './locales/zh_CN/import.json'
 import zhCNDayglance from './locales/zh_CN/dayglance.json'
 
-import zhTWCommon from './locales/zh_HK/common.json'
-import zhTWOnboarding from './locales/zh_HK/onboarding.json'
-import zhTWMilestone from './locales/zh_HK/milestone.json'
-import zhTWChapter from './locales/zh_HK/chapter.json'
-import zhTWSettings from './locales/zh_HK/settings.json'
-import zhTWSync from './locales/zh_HK/sync.json'
-import zhTWTimeline from './locales/zh_HK/timeline.json'
-import zhTWSearch from './locales/zh_HK/search.json'
-import zhTWHelp from './locales/zh_HK/help.json'
-import zhTWStats from './locales/zh_HK/stats.json'
-import zhTWImport from './locales/zh_HK/import.json'
-import zhTWDayglance from './locales/zh_HK/dayglance.json'
-
 import zhHKCommon from './locales/zh_HK/common.json'
 import zhHKOnboarding from './locales/zh_HK/onboarding.json'
 import zhHKMilestone from './locales/zh_HK/milestone.json'
@@ -238,19 +225,21 @@ i18n
         import: zhCNImport,
         dayglance: zhCNDayglance,
       },
+      // Traditional Chinese (Taiwan) is served from the zh_HK translations
+      // until separate zh_TW strings are needed.
       'zh-TW': {
-        common: zhTWCommon,
-        onboarding: zhTWOnboarding,
-        milestone: zhTWMilestone,
-        chapter: zhTWChapter,
-        settings: zhTWSettings,
-        sync: zhTWSync,
-        timeline: zhTWTimeline,
-        search: zhTWSearch,
-        help: zhTWHelp,
-        stats: zhTWStats,
-        import: zhTWImport,
-        dayglance: zhTWDayglance,
+        common: zhHKCommon,
+        onboarding: zhHKOnboarding,
+        milestone: zhHKMilestone,
+        chapter: zhHKChapter,
+        settings: zhHKSettings,
+        sync: zhHKSync,
+        timeline: zhHKTimeline,
+        search: zhHKSearch,
+        help: zhHKHelp,
+        stats: zhHKStats,
+        import: zhHKImport,
+        dayglance: zhHKDayglance,
       },
       'zh-HK': {
         common: zhHKCommon,

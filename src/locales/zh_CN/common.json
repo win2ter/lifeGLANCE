@@ -3,7 +3,7 @@
   "cancel": "取消",
   "save": "保存",
   "saveChanges": "保存更改",
-  "delete": "刪除",
+  "delete": "删除",
   "edit": "编辑",
   "add": "添加",
   "remove": "移除",
@@ -16,7 +16,7 @@
   "eventName": "事件标题",
   "placing": "放置中…",
   "saving": "保存中…",
-  "deleting": "刪除中…",
+  "deleting": "删除中…",
   "loading": "读取中…",
   "testing": "测试中…",
   "portraitMessage": "当前竖屏:请旋转设备，获得最佳体验。"
