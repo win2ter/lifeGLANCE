@@ -15,7 +15,7 @@ import MinimapBar        from '../minimap/MinimapBar'
 import TypewriterText    from '../ui/TypewriterText'
 import { ZOOM_LEVELS, applyRecurFilter } from '../../utils/timeline'
 import { expandAnnualDates } from '../../utils/recurrence'
-import { loadCategories } from '../../utils/colors'
+import { loadCategories, saveCategories } from '../../utils/colors'
 import { getMilestoneVisibility, precomputeEndpoints } from '../../utils/visibility'
 import { addMilestone, updateMilestone, deleteMilestone, restoreMilestones, uid } from '../../data/milestones'
 import { listChapters, restoreChapters, createChapter, updateChapter, deleteChapter } from '../../data/chapters'
@@ -1186,7 +1186,7 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
     }
 
     const chapters = await listChapters()
-    const payload = { milestones, photos, chapters }
+    const payload = { milestones, photos, chapters, categories: loadCategories() }
     const json = JSON.stringify(payload, null, 2)
     const blob = new Blob([json], { type: 'application/json' })
     const url  = URL.createObjectURL(blob)
@@ -1254,9 +1254,12 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
       const items    = Array.isArray(parsed) ? parsed : (parsed.milestones ?? parsed)
       const photos   = (!Array.isArray(parsed) && parsed.photos) ? parsed.photos : {}
       const chapters = (!Array.isArray(parsed) && Array.isArray(parsed.chapters)) ? parsed.chapters : []
+      const restoredCategories = (!Array.isArray(parsed) && Array.isArray(parsed.categories) && parsed.categories.length > 0)
+        ? parsed.categories : null
 
       const restored = await restoreMilestones(items)
       await restoreChapters(chapters)
+      if (restoredCategories) saveCategories(restoredCategories)
 
       // Re-import photo blobs into the media store
       for (const m of restored) {
@@ -1282,6 +1285,7 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
 
       setMilestones([...restored])
       setChapters([...chapters])
+      if (restoredCategories) setCategories(restoredCategories)
       historyRef.current = { stack: [[...restored]], idx: 0 }
       setCanUndo(false)
       setCanRedo(false)
