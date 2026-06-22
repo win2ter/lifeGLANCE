@@ -30,6 +30,7 @@ import { parseIcs }      from '../../utils/icsParser'
 import * as audio from '../../utils/audio'
 import { useIdleMode } from '../../hooks/useIdleMode.js'
 import { enterFullscreen, exitFullscreen, isFullscreen } from '../../utils/fullscreen.js'
+import { toggleTheme } from '../../utils/theme'
 import { relativeLabel, ageAtDate } from '../../utils/dates'
 import { useIntentPoller } from '../../hooks/useIntentPoller.js'
 import { consumeWidgetLaunchTarget } from '../../native/widgetBridge.js'
@@ -693,6 +694,11 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
         case 'm': case 'M': {
           if (anyModal) break
           audio.toggleMuted()
+          break
+        }
+        case 'd': case 'D': {
+          if (anyModal) break
+          toggleTheme()
           break
         }
         case 'z': case 'Z': {

@@ -417,21 +417,44 @@ button, input, select, textarea {
   gap: 1rem;
 }
 
-.skip-link {
+.onboarding-corner {
   position: fixed;
   bottom: 1.25rem;
   right: 1.5rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+/* thin vertical divider between the two controls */
+.onboarding-sep {
+  width: 1px;
+  height: 0.85rem;
+  background: var(--border);
+}
+
+/* matched icon/text links in the onboarding corner (theme toggle + skip) */
+.onboarding-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0;
   background: none;
   border: none;
   color: var(--text-muted);
   font-family: var(--font);
   font-size: 0.72rem;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
   letter-spacing: 0.04em;
+  text-transform: lowercase;
+  cursor: pointer;
+  transition: color 0.15s;
 }
-.skip-link:hover { color: var(--text-dim); }
+.onboarding-link:hover { color: var(--text-dim); }
+.onboarding-link svg {
+  display: block;
+  width: 0.95rem;
+  height: 0.95rem;
+}
 
 /* ─── Timeline Preview Strip (onboarding) ──────────────────────────────────── */
 .timeline-preview {
