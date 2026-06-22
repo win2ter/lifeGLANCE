@@ -32,30 +32,34 @@ function toLocalNoon(dateStr) {
   return new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 12, 0, 0)
 }
 
-export function relativeLabel(dateStr, precision = 'day') {
+// Describes the relative distance from now to `dateStr` as a translation key
+// plus the numbers to interpolate. Shared by relativeLabel() (plain string) and
+// AnimatedRelLabel (count-up). The keys live in the `common` namespace and wrap
+// each number in a positional component tag (<0>{{count}}</0>, <1>{{months}}</1>)
+// so the same key serves both the string form (tags stripped) and the <Trans>
+// form (tags mapped to animated components).
+export function relativeParts(dateStr) {
   const date = toLocalNoon(dateStr)
   const now  = new Date()
   const past = isPast(date) && date < now
+  const from = past ? date : now
+  const to   = past ? now  : date
+  const tense  = past ? 'Past' : 'Future'
+  const years  = differenceInYears(to, from)
+  const months = differenceInMonths(to, from) % 12
+  const days   = differenceInDays(to, from)
 
-  if (past) {
-    const years  = differenceInYears(now, date)
-    const months = differenceInMonths(now, date) % 12
-    const days   = differenceInDays(now, date)
-    if (years > 0 && months > 0) return `${years} yr${years !== 1 ? 's' : ''}, ${months} mo ago`
-    if (years > 0)               return `${years} yr${years !== 1 ? 's' : ''} ago`
-    if (days > 30)               return `${Math.floor(days / 30)} mo ago`
-    if (days > 0)                return `${days} day${days !== 1 ? 's' : ''} ago`
-    return 'today'
-  } else {
-    const years  = differenceInYears(date, now)
-    const months = differenceInMonths(date, now) % 12
-    const days   = differenceInDays(date, now)
-    if (years > 0 && months > 0) return `in ${years} yr${years !== 1 ? 's' : ''}, ${months} mo`
-    if (years > 0)               return `in ${years} yr${years !== 1 ? 's' : ''}`
-    if (days > 30)               return `in ${Math.floor(days / 30)} mo`
-    if (days >= 0)               return `in ${days} day${days !== 1 ? 's' : ''}`
-    return 'today'
-  }
+  if (years > 0 && months > 0) return { key: `rel${tense}YrMo`, count: years, months }
+  if (years > 0)               return { key: `rel${tense}Yr`,   count: years }
+  if (days > 30)               return { key: `rel${tense}Mo`,   count: Math.floor(days / 30) }
+  if (past ? days > 0 : days >= 0) return { key: `rel${tense}Day`, count: days }
+  return { key: 'relToday', today: true }
+}
+
+export function relativeLabel(dateStr, precision = 'day') {
+  const { key, count = 0, months = 0 } = relativeParts(dateStr)
+  // Strip the <0></0> / <1></1> component tags used by the animated variant.
+  return i18n.t(key, { ns: 'common', count, months }).replace(/<\/?\d+>/g, '')
 }
 
 // Precision-aware, locale-aware date display. Intl handles field ordering,

@@ -1,10 +1,19 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
 import {
   buildDateFromParts,
   formatDateDisplay,
   dateFieldOrder,
   monthNames,
+  relativeParts,
+  relativeLabel,
 } from './dates'
+import i18n from '../i18n'
+
+function isoDaysFromNow(n) {
+  const d = new Date()
+  d.setDate(d.getDate() + n)
+  return d.toISOString().slice(0, 10)
+}
 
 describe('buildDateFromParts', () => {
   describe('day precision', () => {
@@ -109,5 +118,57 @@ describe('monthNames', () => {
 
   it('localizes month names', () => {
     expect(monthNames('de', 'long')[0]).toBe('Januar')
+  })
+})
+
+describe('relativeParts', () => {
+  it('returns the today key for the current date', () => {
+    expect(relativeParts(isoDaysFromNow(0))).toEqual({ key: 'relToday', today: true })
+  })
+
+  it('uses past day keys for recent past dates', () => {
+    const p = relativeParts(isoDaysFromNow(-7))
+    expect(p.key).toBe('relPastDay')
+    expect(p.count).toBeGreaterThanOrEqual(6)
+    expect(p.count).toBeLessThanOrEqual(7)
+  })
+
+  it('uses future day keys for near-future dates', () => {
+    const p = relativeParts(isoDaysFromNow(5))
+    expect(p.key).toBe('relFutureDay')
+    expect(p.count).toBeGreaterThanOrEqual(4)
+    expect(p.count).toBeLessThanOrEqual(5)
+  })
+
+  it('uses month keys past the 30-day threshold', () => {
+    expect(relativeParts(isoDaysFromNow(-90)).key).toBe('relPastMo')
+    expect(relativeParts(isoDaysFromNow(120)).key).toBe('relFutureMo')
+  })
+})
+
+describe('relativeLabel', () => {
+  beforeAll(async () => { await i18n.changeLanguage('en') })
+
+  it('renders the localized today string', () => {
+    expect(relativeLabel(isoDaysFromNow(0))).toBe('today')
+  })
+
+  it('renders past/future day phrases with the count interpolated', () => {
+    expect(relativeLabel(isoDaysFromNow(-7))).toMatch(/^\d+ days? ago$/)
+    expect(relativeLabel(isoDaysFromNow(5))).toMatch(/^in \d+ days?$/)
+  })
+
+  it('strips the positional component tags', () => {
+    const label = relativeLabel(isoDaysFromNow(-400))
+    expect(label).not.toContain('<')
+    expect(label).not.toContain('{{')
+  })
+
+  it('follows the selected app language', async () => {
+    await i18n.changeLanguage('de')
+    const label = relativeLabel(isoDaysFromNow(-7))
+    expect(label).toContain('vor')
+    expect(label).toContain('Tag')
+    await i18n.changeLanguage('en')
   })
 })

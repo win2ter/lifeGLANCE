@@ -298,7 +298,7 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
                 className={`precision-tab ${precision === p ? 'active' : ''}`}
                 onClick={() => setPrecision(p)}
               >
-                {p}
+                {tc(p)}
               </button>
             ))}
           </div>
@@ -500,14 +500,14 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, categorie
             )}
 
             <div className="vis-toggle-row">
-              {['inherit', 'shown', 'hidden'].map(v => (
+              {[['inherit', 'visTabInherit'], ['shown', 'visTabShown'], ['hidden', 'visTabHidden']].map(([v, key]) => (
                 <button
                   key={v}
                   type="button"
                   className={`vis-tab${visibility === v ? ' active' : ''}`}
                   onClick={() => setVisibility(v)}
                 >
-                  {v}
+                  {t(key)}
                 </button>
               ))}
             </div>

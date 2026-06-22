@@ -76,7 +76,7 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
           {(() => {
             const age = birthday ? ageAtDate(birthday, m.date) : null
             return age !== null ? (
-              <div className="detail-age">{age} y.o.</div>
+              <div className="detail-age">{t('ageYearsOld', { age })}</div>
             ) : null
           })()}
         </div>
