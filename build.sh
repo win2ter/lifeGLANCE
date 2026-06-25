@@ -8,30 +8,31 @@ OUT_DIR="$SCRIPT_DIR/outputs"
 # Flags
 FULL_CLEAN=false
 RELEASE=false
-VERSION_CODE=""
+BUILD_NUMBER=""
 VERSION_SUFFIX=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --clean)             FULL_CLEAN=true ;;
     --release)           RELEASE=true ;;
-    --version-code)      shift; VERSION_CODE="$1" ;;
-    --version-code=*)    VERSION_CODE="${1#*=}" ;;
+    --build)             shift; BUILD_NUMBER="$1" ;;
+    --build=*)           BUILD_NUMBER="${1#*=}" ;;
     --version-suffix)    shift; VERSION_SUFFIX="$1" ;;
     --version-suffix=*)  VERSION_SUFFIX="${1#*=}" ;;
-    *) echo "Unknown flag: $1 (valid flags: --clean, --release, --version-code N, --version-suffix S)" && exit 1 ;;
+    *) echo "Unknown flag: $1 (valid flags: --clean, --release, --build N, --version-suffix S)" && exit 1 ;;
   esac
   shift
 done
 
-# Interim builds for Play's internal test track: pass an explicit, strictly increasing
-# versionCode without bumping package.json. Plumbed to Gradle via env vars (see
-# android/app/build.gradle).
-if [ -n "$VERSION_CODE" ]; then
-  if ! [[ "$VERSION_CODE" =~ ^[0-9]+$ ]]; then
-    echo "--version-code must be a positive integer (got: $VERSION_CODE)" && exit 1
+# Interim builds for Play's internal test track: a build number (1..999) is packed into
+# the low 3 digits of the package.json-derived versionCode, keeping codes aligned with
+# the marketing version (e.g. 2.3.7 build 1 -> 20307001). Plumbed to Gradle via env vars
+# (see android/app/build.gradle).
+if [ -n "$BUILD_NUMBER" ]; then
+  if ! [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]] || [ "$BUILD_NUMBER" -gt 999 ]; then
+    echo "--build must be an integer 0..999 (got: $BUILD_NUMBER)" && exit 1
   fi
-  export LIFEGLANCE_VERSION_CODE="$VERSION_CODE"
-  echo "==> Using interim versionCode: $VERSION_CODE"
+  export LIFEGLANCE_BUILD_NUMBER="$BUILD_NUMBER"
+  echo "==> Interim build number: $BUILD_NUMBER"
 fi
 if [ -n "$VERSION_SUFFIX" ]; then
   export LIFEGLANCE_VERSION_SUFFIX="$VERSION_SUFFIX"
