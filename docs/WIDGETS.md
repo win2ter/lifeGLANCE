@@ -121,13 +121,23 @@ Shipped in PR #166 (merged). Glance API fixes in PR #167.
 > ⚠️ The Gradle/Kotlin compile cannot run in the Claude Code sandbox (Maven/Google
 > repos blocked). The native module must be built locally (`npm run android`).
 
+### 🚧 Phase 4 — iOS widgets (code complete; Xcode wiring pending)
+WidgetKit + SwiftUI port of all three widgets, reusing the same `widgetSnapshot.js`
+output. The app↔widget link uses an **App Group** (`group.com.lifeglance`) instead of
+Android's same-process SharedPreferences; everything else mirrors Android.
+- `ios/App/LifeGlanceWidgets/` — model+store (`WidgetModel.swift`), theme, provider,
+  views, `@main` bundle, Info.plist, entitlements.
+- `ios/App/App/` — `WidgetBridgePlugin.swift` (iOS `WidgetBridge`), `App.entitlements`,
+  `AppDelegate` deep-link parse, `Info.plist` `lifeglance` URL scheme.
+- No JS changes — same plugin name and snapshot.
+
+> ⚠️ Creating the Widget Extension target + App Group can't be scripted without risking
+> `project.pbxproj`. **See [`IOS-WIDGETS.md`](IOS-WIDGETS.md) for the one-time Xcode
+> setup.** Swift can't be compiled in the Claude Code sandbox either.
+
 ---
 
 ## Roadmap
-
-### ⏳ iOS widgets
-WidgetKit + a matching native bridge. The snapshot builder is platform-agnostic and
-reusable; only the native widget layer differs.
 
 ### 💡 Deferred / ideas
 - **Mini-timeline strip** — a rendered slice of the timeline around today. Highest

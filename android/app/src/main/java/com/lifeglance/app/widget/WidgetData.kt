@@ -7,7 +7,6 @@ import android.content.Intent
 import org.json.JSONObject
 import java.time.LocalDate
 import java.time.Period
-import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
@@ -107,10 +106,11 @@ object WidgetData {
         )
     }
 
-    // The calendar date the milestone falls on, read from the UTC components of the
-    // ISO string — matching the web app's toLocalNoon convention.
+    // The calendar date a value falls on. The leading "yyyy-MM-dd" is the UTC date for
+    // a full ISO instant ("2026-07-01T00:00:00.000Z" — matching the web's toLocalNoon
+    // convention) and is also the whole value for a date-only field like birthday.
     private fun localDateOf(iso: String): LocalDate? = try {
-        java.time.Instant.parse(iso).atZone(ZoneOffset.UTC).toLocalDate()
+        if (iso.length >= 10) LocalDate.parse(iso.substring(0, 10)) else null
     } catch (e: Exception) {
         null
     }
