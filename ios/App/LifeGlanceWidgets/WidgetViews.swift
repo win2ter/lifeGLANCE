@@ -134,3 +134,68 @@ struct CurrentChapterView: View {
         .widgetURL(URL(string: "lifeglance://open"))
     }
 }
+
+// MARK: - On this day
+
+struct OnThisDayView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: SnapshotEntry
+
+    private func subtitle(_ m: WidgetMilestone) -> String {
+        let years = WidgetDate.yearsAgo(m.date)
+        let ago = years > 0 ? "\(years) year\(years == 1 ? "" : "s") ago" : "today"
+        return "\(ago) · \(WidgetDate.formatDate(m.date, precision: m.datePrecision ?? "day"))"
+    }
+
+    var body: some View {
+        let items = entry.snapshot?.onThisDay ?? []
+        let maxRows = family == .systemLarge ? 5 : 2
+        VStack(alignment: .leading, spacing: 4) {
+            Text("ON THIS DAY").font(mono(10, .bold)).foregroundColor(Palette.amber)
+            if items.isEmpty {
+                Text("Nothing from today in past years")
+                    .font(mono(12)).foregroundColor(Palette.muted).lineLimit(2)
+            } else {
+                ForEach(items.prefix(maxRows), id: \.id) { m in
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(m.title).font(mono(13, .bold)).foregroundColor(Palette.text).lineLimit(1)
+                        Text(subtitle(m)).font(mono(11)).foregroundColor(Palette.muted).lineLimit(1)
+                    }
+                }
+                if items.count > maxRows {
+                    Text("+\(items.count - maxRows) more").font(mono(10)).foregroundColor(Palette.amber)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(16)
+        .widgetURL(URL(string: "lifeglance://open"))
+    }
+}
+
+// MARK: - Life stats
+
+struct StatsView: View {
+    @Environment(\.widgetFamily) private var family
+    let entry: SnapshotEntry
+
+    var body: some View {
+        let c = entry.snapshot?.counts
+        VStack(alignment: .leading, spacing: 2) {
+            Text("MILESTONES").font(mono(10, .bold)).foregroundColor(Palette.amber)
+            Text("\(c?.total ?? 0)").font(mono(34, .bold)).foregroundColor(Palette.text)
+            Text("\(c?.past ?? 0) past · \(c?.future ?? 0) ahead")
+                .font(mono(12)).foregroundColor(Palette.muted)
+            if family == .systemLarge {
+                Spacer().frame(height: 6)
+                Text("\(c?.thisYear ?? 0) this year").font(mono(12)).foregroundColor(Palette.muted)
+                if let age = WidgetDate.age(entry.snapshot?.birthday) {
+                    Text("age \(age)").font(mono(12)).foregroundColor(Palette.muted)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .padding(16)
+        .widgetURL(URL(string: "lifeglance://open"))
+    }
+}

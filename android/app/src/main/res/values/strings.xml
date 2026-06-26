@@ -13,4 +13,10 @@
 
     <string name="widget_current_chapter_label">Current chapter</string>
     <string name="widget_current_chapter_description">The chapter you\'re in now: how far along you are and milestones passed.</string>
+
+    <string name="widget_on_this_day_label">On this day</string>
+    <string name="widget_on_this_day_description">Milestones from today\'s date in past years.</string>
+
+    <string name="widget_stats_label">Milestones</string>
+    <string name="widget_stats_description">Your milestone totals: past, ahead, this year, and your age.</string>
 </resources>

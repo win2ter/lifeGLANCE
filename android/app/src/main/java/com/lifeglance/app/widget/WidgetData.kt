@@ -54,8 +54,11 @@ object WidgetData {
         val prev: Milestone?,
         val currentChapter: Chapter?,
         val birthday: String?,
+        val onThisDay: List<Milestone>,
         val pastCount: Int,
         val futureCount: Int,
+        val totalCount: Int,
+        val thisYearCount: Int,
     )
 
     fun readSnapshot(context: Context): Snapshot? {
@@ -68,12 +71,24 @@ object WidgetData {
                 prev = parseMilestone(obj.optJSONObject("prev")),
                 currentChapter = parseChapter(obj.optJSONObject("currentChapter")),
                 birthday = obj.stringOrNull("birthday"),
+                onThisDay = parseMilestoneArray(obj.optJSONArray("onThisDay")),
                 pastCount = counts?.optInt("past", 0) ?: 0,
                 futureCount = counts?.optInt("future", 0) ?: 0,
+                totalCount = counts?.optInt("total", 0) ?: 0,
+                thisYearCount = counts?.optInt("thisYear", 0) ?: 0,
             )
         } catch (e: Exception) {
             null
         }
+    }
+
+    private fun parseMilestoneArray(arr: org.json.JSONArray?): List<Milestone> {
+        if (arr == null) return emptyList()
+        val out = ArrayList<Milestone>(arr.length())
+        for (i in 0 until arr.length()) {
+            parseMilestone(arr.optJSONObject(i))?.let { out.add(it) }
+        }
+        return out
     }
 
     private fun parseChapter(obj: JSONObject?): Chapter? {
@@ -113,6 +128,12 @@ object WidgetData {
         if (iso.length >= 10) LocalDate.parse(iso.substring(0, 10)) else null
     } catch (e: Exception) {
         null
+    }
+
+    /** Whole years between a milestone's calendar year and today (for "on this day"). */
+    fun yearsAgo(iso: String, today: LocalDate = LocalDate.now()): Int {
+        val date = localDateOf(iso) ?: return 0
+        return (today.year - date.year).coerceAtLeast(0)
     }
 
     /** Mirrors the web app's relativeLabel(): "in 3 days", "2 yrs, 1 mo ago", "today". */
@@ -207,6 +228,8 @@ object WidgetData {
             NextMilestoneReceiver::class.java,
             TodayWidgetReceiver::class.java,
             CurrentChapterReceiver::class.java,
+            OnThisDayReceiver::class.java,
+            StatsReceiver::class.java,
         )
         val mgr = AppWidgetManager.getInstance(context)
         for (cls in receivers) {

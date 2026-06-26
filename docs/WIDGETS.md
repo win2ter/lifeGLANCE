@@ -135,6 +135,18 @@ Android's same-process SharedPreferences; everything else mirrors Android.
 > `project.pbxproj`. **See [`IOS-WIDGETS.md`](IOS-WIDGETS.md) for the one-time Xcode
 > setup.** Swift can't be compiled in the Claude Code sandbox either.
 
+### ✅ Phase 5 — On This Day + Milestones (stats) widgets
+Both platforms. **No new native targets** — Android auto-compiles new `.kt` files; the
+iOS widgets are new structs added to the existing extension files. So these land with
+just a pull + rebuild.
+- **On This Day** — past milestones sharing today's month/day (mirrors `OnThisDayModal`),
+  with "N years ago · date". Shows more rows as the widget grows.
+- **Milestones (stats)** — total with a past/ahead split, plus this-year count and age
+  at the larger size.
+- Snapshot gained `onThisDay: Milestone[]` and `counts.thisYear`. `onThisDay` is computed
+  at build time, so it's as fresh as the last snapshot push (fine for a timeline app
+  opened regularly; a follow-up could move the filter to render time for staleness-proofing).
+
 ---
 
 ## Roadmap
@@ -143,11 +155,10 @@ Android's same-process SharedPreferences; everything else mirrors Android.
 - **Mini-timeline strip** — a rendered slice of the timeline around today. Highest
   "wow," hardest (native canvas or a cached bitmap from the web app). Deferred by
   decision.
-- **On This Day** — milestones from this date in past years (feature already exists in
-  `OnThisDayModal.jsx`); would need a small snapshot addition.
-- **Pinned countdown** — user picks one milestone via a config Activity.
-- **Quick-add button** — 1×1 launcher deep-linking into "New milestone" (`N`).
-- **Stats / life-in-weeks** — counts already in the snapshot.
+- **Pinned countdown** — user picks one milestone via a config Activity (Android) /
+  AppIntent configuration (iOS).
+- **Quick-add button** — launcher deep-linking into "New milestone" (`N`); needs a small
+  app-side action handler beyond the current milestone-id launch target.
 
 ---
 

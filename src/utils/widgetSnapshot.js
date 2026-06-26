@@ -95,6 +95,26 @@ export function buildWidgetSnapshot(milestones = [], chapters = [], birthday = n
     }
   }
 
+  // "On this day": past milestones sharing today's month (and day, for day-precision),
+  // mirroring the OnThisDayModal filter. Most recent first. Computed at build time, so
+  // it's as fresh as the last snapshot push (the app pushes on foreground/background).
+  const todayMonth = now.getMonth() + 1
+  const todayDay   = now.getDate()
+  const onThisDay = visible
+    .filter(m => {
+      const d = new Date(m.date)
+      if (d >= now) return false
+      if (m.date_precision === 'year') return false
+      if (d.getMonth() + 1 !== todayMonth) return false
+      return m.date_precision === 'month' || d.getDate() === todayDay
+    })
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .map(projectMilestone)
+
+  // Milestones dated within the current calendar year (for the stats widget).
+  const thisYear = now.getFullYear()
+  const thisYearCount = visible.filter(m => new Date(m.date).getFullYear() === thisYear).length
+
   return {
     version:        WIDGET_SNAPSHOT_VERSION,
     generatedAt:    now.toISOString(),
@@ -102,6 +122,7 @@ export function buildWidgetSnapshot(milestones = [], chapters = [], birthday = n
     next:           projectMilestone(next),
     prev:           projectMilestone(prev),
     currentChapter,
-    counts:         { past, future, total: past + future },
+    onThisDay,
+    counts:         { past, future, total: past + future, thisYear: thisYearCount },
   }
 }

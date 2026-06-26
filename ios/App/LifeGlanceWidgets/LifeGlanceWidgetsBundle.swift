@@ -9,6 +9,8 @@ struct LifeGlanceWidgetsBundle: WidgetBundle {
         NextMilestoneWidget()
         TodayWidget()
         CurrentChapterWidget()
+        OnThisDayWidget()
+        StatsWidget()
     }
 }
 
@@ -41,6 +43,28 @@ struct CurrentChapterWidget: Widget {
         }
         .configurationDisplayName("Current chapter")
         .description("The chapter you're in now: how far along you are and milestones passed.")
+        .supportedFamilies([.systemMedium, .systemLarge])
+    }
+}
+
+struct OnThisDayWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "OnThisDayWidget", provider: SnapshotProvider()) { entry in
+            OnThisDayView(entry: entry).widgetBackground(Palette.bg)
+        }
+        .configurationDisplayName("On this day")
+        .description("Milestones from today's date in past years.")
+        .supportedFamilies([.systemMedium, .systemLarge])
+    }
+}
+
+struct StatsWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "StatsWidget", provider: SnapshotProvider()) { entry in
+            StatsView(entry: entry).widgetBackground(Palette.bg)
+        }
+        .configurationDisplayName("Milestones")
+        .description("Your milestone totals: past, ahead, this year, and your age.")
         .supportedFamilies([.systemMedium, .systemLarge])
     }
 }

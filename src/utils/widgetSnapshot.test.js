@@ -26,7 +26,8 @@ describe('buildWidgetSnapshot', () => {
     expect(snap.next).toBeNull()
     expect(snap.prev).toBeNull()
     expect(snap.currentChapter).toBeNull()
-    expect(snap.counts).toEqual({ past: 0, future: 0, total: 0 })
+    expect(snap.counts).toEqual({ past: 0, future: 0, total: 0, thisYear: 0 })
+    expect(snap.onThisDay).toEqual([])
   })
 
   it('picks the nearest upcoming as next and most recent past as prev', () => {
@@ -39,7 +40,7 @@ describe('buildWidgetSnapshot', () => {
     const snap = buildWidgetSnapshot(milestones, [], null, NOW)
     expect(snap.next.id).toBe('soon')
     expect(snap.prev.id).toBe('recent')
-    expect(snap.counts).toEqual({ past: 2, future: 2, total: 4 })
+    expect(snap.counts).toEqual({ past: 2, future: 2, total: 4, thisYear: 2 })
   })
 
   it('projects a milestone down to widget-relevant fields only', () => {
@@ -108,5 +109,27 @@ describe('buildWidgetSnapshot', () => {
   it('passes through the birthday when set', () => {
     expect(buildWidgetSnapshot([], [], '1990-05-01', NOW).birthday).toBe('1990-05-01')
     expect(buildWidgetSnapshot([], [], '', NOW).birthday).toBeNull()
+  })
+
+  it('collects on-this-day milestones (past, same month/day, not year-precision)', () => {
+    const milestones = [
+      ms({ id: 'match-day',   title: 'Wedding', date: '2018-06-20T12:00:00Z' }),                         // same month+day, past → in
+      ms({ id: 'match-month', title: 'Move',    date: '2019-06-05T12:00:00Z', date_precision: 'month' }), // same month, month-precision → in
+      ms({ id: 'diff-day',    title: 'Other',   date: '2018-06-21T12:00:00Z' }),                         // same month, different day → out
+      ms({ id: 'year-prec',   title: 'Born',    date: '2000-06-20T12:00:00Z', date_precision: 'year' }),  // year-precision → out
+      ms({ id: 'future',      title: 'Future',  date: '2030-06-20T12:00:00Z' }),                         // future → out
+    ]
+    const snap = buildWidgetSnapshot(milestones, [], null, NOW)
+    // Sorted most-recent first: 2019 (match-month) before 2018 (match-day).
+    expect(snap.onThisDay.map(m => m.id)).toEqual(['match-month', 'match-day'])
+  })
+
+  it('counts milestones in the current calendar year', () => {
+    const milestones = [
+      ms({ date: '2026-03-01T12:00:00Z' }),
+      ms({ date: '2026-11-01T12:00:00Z' }),
+      ms({ date: '2025-06-01T12:00:00Z' }),
+    ]
+    expect(buildWidgetSnapshot(milestones, [], null, NOW).counts.thisYear).toBe(2)
   })
 })
