@@ -166,12 +166,13 @@ struct TimelineStripView: View {
                     // "TODAY" tag above the marker. A bg-colored pad keeps it legible
                     // where it sits over the line, and the x is clamped off the edges.
                     Text("TODAY")
-                        .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                        .font(.system(size: 11, weight: .heavy, design: .monospaced))
                         .foregroundColor(Palette.amber)
                         .fixedSize()
                         .padding(.horizontal, 3)
+                        .padding(.bottom, 4)
                         .background(Palette.bg)
-                        .position(x: min(max(px(m.todayX), 20), w - 20), y: 7)
+                        .position(x: min(max(px(m.todayX), 22), w - 22), y: 11)
                 }
             }
         }
