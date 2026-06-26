@@ -190,16 +190,24 @@ struct TimelineStripView: View {
         }
     }
 
+    // Mirrors the pinned-countdown layout: time-to/from biggest, then the
+    // milestone name, then the absolute date smallest.
     private func captionItem(_ m: WidgetMilestone, align: HorizontalAlignment) -> some View {
         VStack(alignment: align, spacing: 1) {
+            Text(WidgetDate.relativeLabel(m.date))
+                .font(.system(size: 16, weight: .bold, design: .monospaced))
+                .foregroundColor(Palette.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             Text(m.title)
-                .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                .font(.system(size: 12, design: .monospaced))
                 .foregroundColor(Palette.text)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-            Text(WidgetDate.relativeLabel(m.date))
-                .font(.system(size: 12, design: .monospaced))
+            Text(WidgetDate.formatDate(m.date, precision: m.datePrecision ?? "day"))
+                .font(.system(size: 10, design: .monospaced))
                 .foregroundColor(Palette.muted)
+                .lineLimit(1)
         }
     }
 }
