@@ -67,6 +67,32 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/current_chapter_widget_info" />
         </receiver>
+
+        <!-- Home-screen widget: on this day -->
+        <receiver
+            android:name=".widget.OnThisDayReceiver"
+            android:label="@string/widget_on_this_day_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/on_this_day_widget_info" />
+        </receiver>
+
+        <!-- Home-screen widget: milestones / life stats -->
+        <receiver
+            android:name=".widget.StatsReceiver"
+            android:label="@string/widget_stats_label"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/stats_widget_info" />
+        </receiver>
     </application>
 
     <!-- Permissions -->

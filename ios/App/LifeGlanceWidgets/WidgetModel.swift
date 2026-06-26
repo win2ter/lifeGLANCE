@@ -49,12 +49,14 @@ struct WidgetSnapshot: Codable {
     let next: WidgetMilestone?
     let prev: WidgetMilestone?
     let currentChapter: WidgetChapter?
+    let onThisDay: [WidgetMilestone]?
     let counts: Counts?
 
     struct Counts: Codable {
         let past: Int?
         let future: Int?
         let total: Int?
+        let thisYear: Int?
     }
 }
 
@@ -157,6 +159,14 @@ enum WidgetDate {
         let now = today()
         if now < born { return nil }
         return utcCalendar.dateComponents([.year], from: born, to: now).year
+    }
+
+    /// Whole years between a milestone's calendar year and today (for "on this day").
+    static func yearsAgo(_ iso: String) -> Int {
+        guard let date = dateOnly(iso) else { return 0 }
+        let then = utcCalendar.component(.year, from: date)
+        let nowYear = utcCalendar.component(.year, from: today())
+        return max(nowYear - then, 0)
     }
 
     /// Time-elapsed progress through a bounded chapter as 0...1, or nil if ongoing.
