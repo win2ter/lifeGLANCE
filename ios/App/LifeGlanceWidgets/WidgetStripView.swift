@@ -163,6 +163,15 @@ struct TimelineStripView: View {
                     Circle().fill(Palette.amber)
                         .frame(width: 6, height: 6)
                         .position(x: px(m.todayX), y: axisY)
+                    // "TODAY" tag above the marker. A bg-colored pad keeps it legible
+                    // where it sits over the line, and the x is clamped off the edges.
+                    Text("TODAY")
+                        .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                        .foregroundColor(Palette.amber)
+                        .fixedSize()
+                        .padding(.horizontal, 3)
+                        .background(Palette.bg)
+                        .position(x: min(max(px(m.todayX), 20), w - 20), y: 7)
                 }
             }
         }
@@ -181,15 +190,24 @@ struct TimelineStripView: View {
         }
     }
 
+    // Mirrors the pinned-countdown layout: time-to/from biggest, then the
+    // milestone name, then the absolute date smallest.
     private func captionItem(_ m: WidgetMilestone, align: HorizontalAlignment) -> some View {
         VStack(alignment: align, spacing: 1) {
-            Text(m.title)
-                .font(.system(size: 11, design: .monospaced))
+            Text(WidgetDate.relativeLabel(m.date))
+                .font(.system(size: 16, weight: .bold, design: .monospaced))
                 .foregroundColor(Palette.text)
                 .lineLimit(1)
-            Text(WidgetDate.relativeLabel(m.date))
-                .font(.system(size: 9, design: .monospaced))
+                .minimumScaleFactor(0.7)
+            Text(m.title)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundColor(Palette.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Text(WidgetDate.formatDate(m.date, precision: m.datePrecision ?? "day"))
+                .font(.system(size: 10, design: .monospaced))
                 .foregroundColor(Palette.muted)
+                .lineLimit(1)
         }
     }
 }
