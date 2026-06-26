@@ -193,11 +193,12 @@ struct TimelineStripView: View {
     private func captionItem(_ m: WidgetMilestone, align: HorizontalAlignment) -> some View {
         VStack(alignment: align, spacing: 1) {
             Text(m.title)
-                .font(.system(size: 11, design: .monospaced))
+                .font(.system(size: 14, weight: .semibold, design: .monospaced))
                 .foregroundColor(Palette.text)
                 .lineLimit(1)
+                .minimumScaleFactor(0.8)
             Text(WidgetDate.relativeLabel(m.date))
-                .font(.system(size: 9, design: .monospaced))
+                .font(.system(size: 12, design: .monospaced))
                 .foregroundColor(Palette.muted)
         }
     }
