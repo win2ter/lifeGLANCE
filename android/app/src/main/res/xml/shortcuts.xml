@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  App shortcut (long-press the launcher icon) to add a milestone. It launches
+  MainActivity with the widget_action="new" extra — the same contract the
+  quick-add widget and the Quick Settings tile use — which MainActivity stashes
+  for the web layer (consumeWidgetLaunchTarget → action 'new' → AddMilestoneSheet).
+-->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="add_milestone"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_add"
+        android:shortcutShortLabel="@string/shortcut_add_short"
+        android:shortcutLongLabel="@string/shortcut_add_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.lifeglance.app"
+            android:targetClass="com.lifeglance.app.MainActivity">
+            <extra
+                android:name="widget_action"
+                android:value="new" />
+        </intent>
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="search"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_search"
+        android:shortcutShortLabel="@string/shortcut_search_short"
+        android:shortcutLongLabel="@string/shortcut_search_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.lifeglance.app"
+            android:targetClass="com.lifeglance.app.MainActivity">
+            <extra
+                android:name="widget_action"
+                android:value="search" />
+        </intent>
+    </shortcut>
+</shortcuts>
