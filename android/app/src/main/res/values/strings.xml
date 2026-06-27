@@ -23,6 +23,11 @@
     <string name="widget_quick_add_label">Add milestone</string>
     <string name="widget_quick_add_description">A one-tap shortcut to add a new milestone.</string>
 
+    <!-- Quick Settings tile + app shortcut (both open the add-milestone sheet) -->
+    <string name="tile_add_milestone_label">Add milestone</string>
+    <string name="shortcut_add_short">Add milestone</string>
+    <string name="shortcut_add_long">Add a new milestone</string>
+
     <string name="widget_pin_amber_label">Countdown · amber</string>
     <string name="widget_pin_rose_label">Countdown · rose</string>
     <string name="widget_pin_teal_label">Countdown · teal</string>
