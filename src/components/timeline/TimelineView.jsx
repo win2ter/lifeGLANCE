@@ -487,12 +487,8 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
         setAddOpen(true)
         return
       }
-      if (target.action === 'search') {       // "Search" app shortcut
+      if (target.action === 'search') {   // "Search" app shortcut
         setSearchOpen(true)
-        return
-      }
-      if (target.action === 'on-this-day') {  // "On this day" app shortcut
-        setOnThisDayOpen(true)
         return
       }
       const m = milestonesRef.current.find(x => x.id === target.milestoneId)

@@ -37,20 +37,4 @@
                 android:value="search" />
         </intent>
     </shortcut>
-
-    <shortcut
-        android:shortcutId="on_this_day"
-        android:enabled="true"
-        android:icon="@drawable/ic_shortcut_on_this_day"
-        android:shortcutShortLabel="@string/shortcut_on_this_day_short"
-        android:shortcutLongLabel="@string/shortcut_on_this_day_long">
-        <intent
-            android:action="android.intent.action.VIEW"
-            android:targetPackage="com.lifeglance.app"
-            android:targetClass="com.lifeglance.app.MainActivity">
-            <extra
-                android:name="widget_action"
-                android:value="on-this-day" />
-        </intent>
-    </shortcut>
 </shortcuts>
