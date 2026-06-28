@@ -27,8 +27,17 @@ const SEEDED_KEY     = 'lifeglance-db-sync-seeded'
 
 let _dbEngine = null
 let _pushTimer = null
+// Cached init options (the React setters App passes at mount) so the engine can
+// be re-initialised IN PLACE from anywhere — e.g. the settings modal activating
+// vault sync — without a page reload and without re-plumbing the setters.
+let _lastOpts = {}
 
 export const getDbSyncEngine = () => _dbEngine
+
+// Re-read the vault config and rebuild the engine in place using the cached
+// options. Returns the new engine (or null if vault is now disabled). Used after
+// the credential UI saves a freshly-verified config.
+export const reinitDbSyncEngine = () => initDbSyncEngine(_lastOpts)
 
 // Reads vault settings from the existing cloud-sync config (additive optional
 // fields). Returns null unless the vault is explicitly enabled AND all three of
@@ -71,6 +80,13 @@ const ensureDeviceId = () => {
  * @param {Function} [opts.fetchImpl]
  */
 export const initDbSyncEngine = (opts = {}) => {
+  // Cache the durable wiring (React setters etc.) so reinitDbSyncEngine() can
+  // rebuild later without them being re-passed. Explicit one-shot test deps
+  // (vaultConfig/vaultClient/store) are NOT cached so a later reinit re-reads the
+  // real config.
+  const { vaultConfig: _vc, vaultClient: _vcl, store: _st, ...durable } = opts
+  _lastOpts = { ..._lastOpts, ...durable }
+
   const vaultConfig = opts.vaultConfig ?? readVaultConfig()
   if (!vaultConfig) { _dbEngine = null; registerDirtyTarget(null); return null }
 
