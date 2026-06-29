@@ -107,7 +107,7 @@ describe('wiring — injection sites pass the adapter on native, undefined on we
   })
 
   it('blob transport uses global fetch on web (adapter undefined), not throwing for missing fetch', async () => {
-    const { blobExists } = await import('../blobs/blobTransport.ts')
+    const { blobExists } = await import('../blobs/blobTransport.js')
     // Inject an explicit fetch so we exercise resolveFetch without hitting network;
     // proves the native fallback does not interfere on web.
     const fetchImpl = async () => ({ ok: false, status: 404, json: async () => ({}), arrayBuffer: async () => new ArrayBuffer(0) })

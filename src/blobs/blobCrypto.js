@@ -104,23 +104,9 @@ export class BlobKeyUnavailableError extends Error {
   }
 }
 
-/** The derived blob key, materialised as the two WebCrypto keys we need. */
-export interface BlobKey {
-  /** AES-256-GCM key for encrypt/decrypt. */
-  aesKey: CryptoKey
-  /** HMAC-SHA256 key for the content-derived nonce (same key bytes as `aesKey`). */
-  hmacKey: CryptoKey
-}
-
-/** A source of the vault root key: resolves to the key, or null if unavailable. */
-export type RootKeyProvider = () => Promise<CryptoKey | null>
-
-/** Plaintext accepted for encryption (binary blob data). */
-export type Plaintext = Uint8Array | ArrayBuffer
-
 const textEncoder = new TextEncoder()
 
-function toBytes(data: Plaintext): Uint8Array {
+function toBytes(data) {
   return data instanceof Uint8Array ? data : new Uint8Array(data)
 }
 
@@ -134,11 +120,9 @@ function toBytes(data: Plaintext): Uint8Array {
  *
  * @param getRootKey  Source of the root key (default: the vault intents store).
  *                    Injectable so this module stays decoupled and testable.
- * @returns the BlobKey, or `null` if the root key is not available.
+ * @returns the BlobKey ({ aesKey, hmacKey }), or `null` if the root key is not available.
  */
-export async function deriveBlobKey(
-  getRootKey: RootKeyProvider = loadIntentsRootKey,
-): Promise<BlobKey | null> {
+export async function deriveBlobKey(getRootKey = loadIntentsRootKey) {
   const rootKey = await getRootKey()
   if (!rootKey) return null
 
@@ -167,7 +151,7 @@ export async function deriveBlobKey(
 }
 
 /** SHA-256 of `bytes`, lowercase hex. */
-async function sha256Hex(bytes: Uint8Array): Promise<string> {
+async function sha256Hex(bytes) {
   const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))
   let hex = ''
   for (const b of digest) hex += b.toString(16).padStart(2, '0')
@@ -177,17 +161,14 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
 /**
  * Encrypt a blob deterministically and compute its content address.
  *
- * @param plaintext   The blob bytes.
+ * @param plaintext   The blob bytes (Uint8Array or ArrayBuffer).
  * @param getRootKey  Root key source (default: the vault intents store).
  * @returns `{ bytes, hash }` where `bytes` is the stored form [nonce || ciphertext]
  *          and `hash` is SHA-256(bytes) hex — the server-visible content address.
  * @throws  {BlobKeyUnavailableError} if the root key is unavailable. NEVER falls
  *          back to plaintext.
  */
-export async function encryptBlob(
-  plaintext: Plaintext,
-  getRootKey: RootKeyProvider = loadIntentsRootKey,
-): Promise<{ bytes: Uint8Array; hash: string }> {
+export async function encryptBlob(plaintext, getRootKey = loadIntentsRootKey) {
   const blobKey = await deriveBlobKey(getRootKey)
   if (!blobKey) throw new BlobKeyUnavailableError()
 
@@ -222,10 +203,7 @@ export async function encryptBlob(
  * @throws  if the blob has been tampered with (AES-GCM tag verification fails)
  *          or is malformed.
  */
-export async function decryptBlob(
-  stored: Uint8Array,
-  getRootKey: RootKeyProvider = loadIntentsRootKey,
-): Promise<Uint8Array> {
+export async function decryptBlob(stored, getRootKey = loadIntentsRootKey) {
   const blobKey = await deriveBlobKey(getRootKey)
   if (!blobKey) throw new BlobKeyUnavailableError()
 

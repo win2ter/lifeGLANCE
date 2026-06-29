@@ -51,58 +51,14 @@ export const POSTER_FRAME_TIME_SECONDS = 1
  * thumbnail that was never made.
  */
 export class ThumbnailGenerationError extends Error {
-  constructor(message: string, options?: { cause?: unknown }) {
+  constructor(message, options) {
     super(message, options)
     this.name = 'ThumbnailGenerationError'
   }
 }
 
-/** A decoded raster image: its pixel dimensions plus an opaque drawable source. */
-export interface RasterImage {
-  width: number
-  height: number
-  /** Opaque handle the processor's own `encode` knows how to draw (e.g. ImageBitmap). */
-  source: unknown
-}
-
-/**
- * The platform image-processing primitive. The real implementation uses browser
- * canvas APIs; tests inject a fake. Kept tiny and side-effect-explicit so it can
- * be swapped per platform.
- */
-export interface ImageProcessor {
-  /** Decode still-image bytes into a drawable raster (with dimensions). */
-  decodeImage(bytes: Uint8Array, mimeType: string): Promise<RasterImage>
-  /** Grab a poster frame from video bytes at ~`atSeconds` into a drawable raster. */
-  decodeVideoFrame(bytes: Uint8Array, mimeType: string, atSeconds: number): Promise<RasterImage>
-  /** Downscale `image` to `targetWidth`×`targetHeight` and encode to `mimeType` bytes. */
-  encode(
-    image: RasterImage,
-    targetWidth: number,
-    targetHeight: number,
-    mimeType: string,
-    quality: number,
-  ): Promise<Uint8Array>
-}
-
-/** Options for {@link generateThumbnail}. All optional; sensible defaults apply. */
-export interface ThumbnailOptions {
-  /** Image-processing primitive. Defaults to the browser-backed processor. */
-  processor?: ImageProcessor
-  /** Longest-edge bound in px. Defaults to {@link MAX_THUMBNAIL_EDGE}. */
-  maxEdge?: number
-  /** Output mime type. Defaults to {@link DEFAULT_OUTPUT_MIME}. */
-  outputMimeType?: string
-  /** Encode quality 0..1. Defaults to {@link DEFAULT_QUALITY}. */
-  quality?: number
-  /** Video poster timestamp (s). Defaults to {@link POSTER_FRAME_TIME_SECONDS}. */
-  posterTimeSeconds?: number
-}
-
-export type SourceKind = 'image' | 'video'
-
 /** Classify a source mime type. Returns null for anything we can't thumbnail. */
-export function sourceKind(mimeType: string | undefined | null): SourceKind | null {
+export function sourceKind(mimeType) {
   if (typeof mimeType !== 'string') return null
   const m = mimeType.toLowerCase().trim()
   if (m.startsWith('image/')) return 'image'
@@ -110,7 +66,7 @@ export function sourceKind(mimeType: string | undefined | null): SourceKind | nu
   return null
 }
 
-function isPositiveInt(n: unknown): n is number {
+function isPositiveInt(n) {
   return typeof n === 'number' && Number.isFinite(n) && n > 0
 }
 
@@ -119,11 +75,7 @@ function isPositiveInt(n: unknown): n is number {
  * ratio. Never upscales: a source already within the bound is returned unchanged.
  * Pure — no platform dependency — so it's directly testable.
  */
-export function fitWithin(
-  width: number,
-  height: number,
-  maxEdge: number,
-): { width: number; height: number } {
+export function fitWithin(width, height, maxEdge) {
   const longest = Math.max(width, height)
   if (longest <= maxEdge) return { width, height }
   const scale = maxEdge / longest
@@ -149,11 +101,7 @@ export function fitWithin(
  * @throws {ThumbnailGenerationError} on unsupported/corrupt source or any
  *         decode/encode failure — cleanly, with no partial output.
  */
-export async function generateThumbnail(
-  sourceBytes: Uint8Array,
-  mimeType: string,
-  opts: ThumbnailOptions = {},
-): Promise<{ bytes: Uint8Array; mimeType: string }> {
+export async function generateThumbnail(sourceBytes, mimeType, opts = {}) {
   const processor = opts.processor ?? browserImageProcessor
   const maxEdge = opts.maxEdge ?? MAX_THUMBNAIL_EDGE
   const outputMimeType = opts.outputMimeType ?? DEFAULT_OUTPUT_MIME
@@ -170,7 +118,7 @@ export async function generateThumbnail(
   }
 
   // Decode (platform). A corrupt or undecodable source surfaces here.
-  let decoded: RasterImage
+  let decoded
   try {
     decoded =
       kind === 'video'
@@ -186,7 +134,7 @@ export async function generateThumbnail(
   const target = fitWithin(decoded.width, decoded.height, maxEdge)
 
   // Downscale + encode (platform).
-  let bytes: Uint8Array
+  let bytes
   try {
     bytes = await processor.encode(decoded, target.width, target.height, outputMimeType, quality)
   } catch (err) {
@@ -207,31 +155,31 @@ export async function generateThumbnail(
 // is safe; the methods themselves only run in-app, where tests inject a fake.
 // =============================================================================
 
-function requireGlobal<T>(name: string): T {
-  const g = (globalThis as any)[name]
+function requireGlobal(name) {
+  const g = globalThis[name]
   if (g == null) throw new Error(`thumbnail: ${name} is not available in this environment`)
-  return g as T
+  return g
 }
 
-async function decodeWith(createBitmap: () => Promise<any>): Promise<RasterImage> {
+async function decodeWith(createBitmap) {
   const bitmap = await createBitmap()
   return { width: bitmap.width, height: bitmap.height, source: bitmap }
 }
 
-export const browserImageProcessor: ImageProcessor = {
+export const browserImageProcessor = {
   async decodeImage(bytes, mimeType) {
-    const createImageBitmap = requireGlobal<(b: any) => Promise<any>>('createImageBitmap')
-    const blob = new Blob([bytes as BlobPart], { type: mimeType })
+    const createImageBitmap = requireGlobal('createImageBitmap')
+    const blob = new Blob([bytes], { type: mimeType })
     return decodeWith(() => createImageBitmap(blob))
   },
 
   async decodeVideoFrame(bytes, mimeType, atSeconds) {
-    const createImageBitmap = requireGlobal<(b: any) => Promise<any>>('createImageBitmap')
-    const doc = requireGlobal<any>('document')
-    const URLg = requireGlobal<any>('URL')
-    const blob = new Blob([bytes as BlobPart], { type: mimeType })
+    const createImageBitmap = requireGlobal('createImageBitmap')
+    const doc = requireGlobal('document')
+    const URLg = requireGlobal('URL')
+    const blob = new Blob([bytes], { type: mimeType })
     const url = URLg.createObjectURL(blob)
-    const video: any = doc.createElement('video')
+    const video = doc.createElement('video')
     video.muted = true
     video.preload = 'auto'
     video.playsInline = true
@@ -253,17 +201,17 @@ export const browserImageProcessor: ImageProcessor = {
   },
 
   async encode(image, targetWidth, targetHeight, mimeType, quality) {
-    const OffscreenCanvasG = requireGlobal<any>('OffscreenCanvas')
+    const OffscreenCanvasG = requireGlobal('OffscreenCanvas')
     const canvas = new OffscreenCanvasG(targetWidth, targetHeight)
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('thumbnail: could not get a 2d canvas context')
-    ctx.drawImage(image.source as any, 0, 0, targetWidth, targetHeight)
+    ctx.drawImage(image.source, 0, 0, targetWidth, targetHeight)
     const blob = await canvas.convertToBlob({ type: mimeType, quality })
     return new Uint8Array(await blob.arrayBuffer())
   },
 }
 
-function onceEvent(target: any, name: string): Promise<void> {
+function onceEvent(target, name) {
   return new Promise((resolve, reject) => {
     const onOk = () => {
       cleanup()
@@ -282,7 +230,7 @@ function onceEvent(target: any, name: string): Promise<void> {
   })
 }
 
-function seekVideo(video: any, seconds: number): Promise<void> {
+function seekVideo(video, seconds) {
   return new Promise((resolve, reject) => {
     const onSeeked = () => {
       cleanup()

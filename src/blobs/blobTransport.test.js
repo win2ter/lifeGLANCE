@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { encryptBlob } from './blobCrypto.ts'
+import { encryptBlob } from './blobCrypto.js'
 import {
   uploadBlob,
   downloadBlob,
@@ -10,8 +10,8 @@ import {
   readVaultConnection,
   VaultConnectionUnavailableError,
   BlobHashMismatchError,
-} from './blobTransport.ts'
-import { BlobKeyUnavailableError } from './blobCrypto.ts'
+} from './blobTransport.js'
+import { BlobKeyUnavailableError } from './blobCrypto.js'
 
 // =============================================================================
 // END-TO-END / SEAM NOTE
