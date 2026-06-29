@@ -7,7 +7,7 @@ import {
   MAX_THUMBNAIL_EDGE,
   DEFAULT_OUTPUT_MIME,
   POSTER_FRAME_TIME_SECONDS,
-} from './thumbnail.ts'
+} from './thumbnail.js'
 
 // =============================================================================
 // TEST ENVIRONMENT NOTE

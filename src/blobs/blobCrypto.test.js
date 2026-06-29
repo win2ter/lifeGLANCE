@@ -5,7 +5,7 @@ import {
   deriveBlobKey,
   BlobKeyUnavailableError,
   NONCE_LENGTH,
-} from './blobCrypto.ts'
+} from './blobCrypto.js'
 
 // The module reaches the vault root key through an injectable provider
 // (default: the intents key store). In tests we inject a provider that returns

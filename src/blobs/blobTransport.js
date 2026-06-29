@@ -3,7 +3,7 @@
 // =============================================================================
 //
 // Drives the glance-vault blob HTTP API on top of the crypto core
-// (./blobCrypto.ts). It does NOT generate thumbnails and does NOT wire blobs to
+// (./blobCrypto.js). It does NOT generate thumbnails and does NOT wire blobs to
 // milestone entities — those are later steps. This file owns only the transport:
 // encrypt → existence-check → resumable upload → finalize, and download →
 // decrypt, plus existence and reference helpers.
@@ -33,7 +33,7 @@
 //
 // THE HASH SEAM (the load-bearing invariant this step proves):
 //   The stored blob bytes are [nonce(12) || ciphertext+tag] and the address is
-//   `hash = SHA-256(those exact bytes)` (see blobCrypto.ts). The client uploads
+//   `hash = SHA-256(those exact bytes)` (see blobCrypto.js). The client uploads
 //   those exact bytes in order; on finalize the server reassembles the parts,
 //   recomputes SHA-256 over the reassembled bytes, and MUST get the same hash the
 //   client declared. Same bytes hashed the same way ⇒ finalize accepts. The
@@ -43,7 +43,7 @@
 // unavailable, BlobKeyUnavailableError propagates and NOTHING is sent — the
 // caller treats it as a hold/retry, mirroring the intents key-absent path.
 //
-// FUTURE: like blobCrypto.ts, this is structured for extraction into a shared
+// FUTURE: like blobCrypto.js, this is structured for extraction into a shared
 // `@glance-apps/*` package — it imports only the crypto core and reads the
 // connection through an injectable seam, with no UI or milestone dependencies.
 // (Native binary routing — Range + arrayBuffer over CapacitorHttp — is a
@@ -51,46 +51,8 @@
 // browser/PWA and is what `fetchImpl` injection swaps out.)
 // =============================================================================
 
-import {
-  encryptBlob,
-  decryptBlob,
-  type Plaintext,
-  type RootKeyProvider,
-} from './blobCrypto.ts'
+import { encryptBlob, decryptBlob } from './blobCrypto.js'
 import { nativeVaultFetchImpl } from '../sync/nativeVaultFetch.js'
-
-/** The glance-vault connection coordinates (same shape sync's vault client uses). */
-export interface VaultConnection {
-  vaultUrl: string
-  vaultToken: string
-  accountId: string
-}
-
-/** Minimal fetch shape we depend on — global `fetch` satisfies it. */
-export type FetchImpl = (url: string, init: FetchInit) => Promise<FetchResponse>
-export interface FetchInit {
-  method: string
-  headers: Record<string, string>
-  body?: Uint8Array | ArrayBuffer | string
-}
-export interface FetchResponse {
-  ok: boolean
-  status: number
-  arrayBuffer(): Promise<ArrayBuffer>
-  json(): Promise<any>
-}
-
-/** Injectable dependencies; every public fn accepts these, all with safe defaults. */
-export interface BlobTransportDeps {
-  /** The vault connection to use. Defaults to reading the sync config. */
-  connection?: VaultConnection | null
-  /** The fetch implementation. Defaults to global fetch. */
-  fetchImpl?: FetchImpl
-  /** The blob root-key source, threaded into the crypto core. */
-  getRootKey?: RootKeyProvider
-  /** Upload part size in bytes. Defaults to 1 MiB. */
-  partSize?: number
-}
 
 /** Default resumable-upload part size: 1 MiB. */
 export const DEFAULT_PART_SIZE = 1024 * 1024
@@ -104,8 +66,8 @@ const SYNC_CONFIG_KEY = 'lifeglance-cloud-sync-config'
  * error. The caller should retry once the vault connection is populated.
  */
 export class VaultConnectionUnavailableError extends Error {
-  readonly code = 'VAULT_NOT_READY'
-  readonly transient = true
+  code = 'VAULT_NOT_READY'
+  transient = true
   constructor(message = 'vault connection not available (URL, token, or accountId missing)') {
     super(message)
     this.name = 'VaultConnectionUnavailableError'
@@ -114,8 +76,7 @@ export class VaultConnectionUnavailableError extends Error {
 
 /** A blob endpoint returned a non-OK status. Carries the HTTP status. */
 export class BlobTransportError extends Error {
-  readonly status: number
-  constructor(message: string, status: number) {
+  constructor(message, status) {
     super(message)
     this.name = 'BlobTransportError'
     this.status = status
@@ -130,8 +91,7 @@ export class BlobTransportError extends Error {
  * end-to-end test asserts does NOT occur on the happy path.
  */
 export class BlobHashMismatchError extends Error {
-  readonly hash: string
-  constructor(hash: string) {
+  constructor(hash) {
     super(`finalize rejected: server hash of reassembled bytes != declared hash ${hash}`)
     this.name = 'BlobHashMismatchError'
     this.hash = hash
@@ -145,8 +105,8 @@ export class BlobHashMismatchError extends Error {
  * @glance-apps/sync's vault transport reads it). Returns null if absent or
  * incomplete — callers turn that into a VaultConnectionUnavailableError.
  */
-export function readVaultConnection(): VaultConnection | null {
-  let cfg: any
+export function readVaultConnection() {
+  let cfg
   try {
     const raw = localStorage.getItem(SYNC_CONFIG_KEY)
     cfg = raw ? JSON.parse(raw) : null
@@ -167,20 +127,20 @@ export function readVaultConnection(): VaultConnection | null {
   return { vaultUrl, vaultToken, accountId }
 }
 
-function resolveConnection(deps: BlobTransportDeps): VaultConnection {
+function resolveConnection(deps) {
   const conn = deps.connection ?? readVaultConnection()
   if (!conn) throw new VaultConnectionUnavailableError()
   return conn
 }
 
-function resolveFetch(deps: BlobTransportDeps): FetchImpl {
+function resolveFetch(deps) {
   // On native, route vault blob requests through CapacitorHttp (undefined on web,
   // so the browser/PWA keeps using global fetch — the vault serves CORS there).
   // This is the same native-safe adapter the sync vault client and verify probe
   // use, so the blob control plane reaches the vault on native ahead of the
   // Phase 8 media round-trip.
-  const native = nativeVaultFetchImpl() as unknown as FetchImpl | undefined
-  const f = deps.fetchImpl ?? native ?? (globalThis.fetch as unknown as FetchImpl | undefined)
+  const native = nativeVaultFetchImpl()
+  const f = deps.fetchImpl ?? native ?? globalThis.fetch
   if (typeof f !== 'function') {
     throw new Error('blobTransport: no fetch implementation available')
   }
@@ -189,26 +149,13 @@ function resolveFetch(deps: BlobTransportDeps): FetchImpl {
 
 // ── Request helper (mirrors vaultClient.js request/authHeaders) ───────────────
 
-interface RequestOpts {
-  query?: Record<string, string>
-  jsonBody?: unknown
-  binaryBody?: Uint8Array | ArrayBuffer
-  headers?: Record<string, string>
-}
-
-async function vaultRequest(
-  conn: VaultConnection,
-  doFetch: FetchImpl,
-  method: string,
-  path: string,
-  opts: RequestOpts = {},
-): Promise<FetchResponse> {
+async function vaultRequest(conn, doFetch, method, path, opts = {}) {
   let url = conn.vaultUrl.replace(/\/+$/, '') + path
   if (opts.query) {
     const qs = new URLSearchParams(opts.query).toString()
     if (qs) url += `?${qs}`
   }
-  const init: FetchInit = {
+  const init = {
     method,
     headers: { Authorization: `Bearer ${conn.vaultToken}`, ...opts.headers },
   }
@@ -222,7 +169,7 @@ async function vaultRequest(
   return doFetch(url, init)
 }
 
-async function jsonOrThrow(res: FetchResponse, context: string): Promise<any> {
+async function jsonOrThrow(res, context) {
   if (!res.ok) throw new BlobTransportError(`${context} failed: ${res.status}`, res.status)
   return res.json()
 }
@@ -234,7 +181,7 @@ async function jsonOrThrow(res: FetchResponse, context: string): Promise<any> {
  * @returns true if present (2xx), false if absent (404).
  * @throws  BlobTransportError on any other status.
  */
-export async function blobExists(hash: string, deps: BlobTransportDeps = {}): Promise<boolean> {
+export async function blobExists(hash, deps = {}) {
   const conn = resolveConnection(deps)
   const doFetch = resolveFetch(deps)
   const res = await vaultRequest(conn, doFetch, 'HEAD', `/blobs/${encodeURIComponent(hash)}`, {
@@ -247,8 +194,8 @@ export async function blobExists(hash: string, deps: BlobTransportDeps = {}): Pr
 
 // ── Upload ───────────────────────────────────────────────────────────────────
 
-function splitIntoParts(bytes: Uint8Array, partSize: number): Uint8Array[] {
-  const parts: Uint8Array[] = []
+function splitIntoParts(bytes, partSize) {
+  const parts = []
   for (let off = 0; off < bytes.length; off += partSize) {
     parts.push(bytes.subarray(off, Math.min(off + partSize, bytes.length)))
   }
@@ -259,13 +206,7 @@ function splitIntoParts(bytes: Uint8Array, partSize: number): Uint8Array[] {
 }
 
 /** POST /blobs/uploads — initiate (idempotent on hash) → uploadId. */
-async function initiateUpload(
-  conn: VaultConnection,
-  doFetch: FetchImpl,
-  hash: string,
-  size: number,
-  partSize: number,
-): Promise<string> {
+async function initiateUpload(conn, doFetch, hash, size, partSize) {
   const res = await vaultRequest(conn, doFetch, 'POST', '/blobs/uploads', {
     jsonBody: { accountId: conn.accountId, hash, size, partSize },
   })
@@ -277,27 +218,17 @@ async function initiateUpload(
 }
 
 /** GET /blobs/uploads/:id — which part indices the server already holds. */
-async function getResumePoint(
-  conn: VaultConnection,
-  doFetch: FetchImpl,
-  uploadId: string,
-): Promise<Set<number>> {
+async function getResumePoint(conn, doFetch, uploadId) {
   const res = await vaultRequest(conn, doFetch, 'GET', `/blobs/uploads/${encodeURIComponent(uploadId)}`, {
     query: { accountId: conn.accountId },
   })
   const body = await jsonOrThrow(res, 'resume point')
-  const received: number[] = Array.isArray(body?.received) ? body.received : []
+  const received = Array.isArray(body?.received) ? body.received : []
   return new Set(received)
 }
 
 /** PUT /blobs/uploads/:id/parts/:i — send one part (raw bytes). */
-async function putPart(
-  conn: VaultConnection,
-  doFetch: FetchImpl,
-  uploadId: string,
-  index: number,
-  part: Uint8Array,
-): Promise<void> {
+async function putPart(conn, doFetch, uploadId, index, part) {
   const res = await vaultRequest(
     conn,
     doFetch,
@@ -309,12 +240,7 @@ async function putPart(
 }
 
 /** POST /blobs/uploads/:id/finalize — reassemble + verify hash + store. */
-async function finalizeUpload(
-  conn: VaultConnection,
-  doFetch: FetchImpl,
-  uploadId: string,
-  hash: string,
-): Promise<void> {
+async function finalizeUpload(conn, doFetch, uploadId, hash) {
   const res = await vaultRequest(
     conn,
     doFetch,
@@ -325,7 +251,7 @@ async function finalizeUpload(
   if (res.ok) return
   // The server signals a hash mismatch distinctly so we can surface it clearly.
   if (res.status === 409 || res.status === 422 || res.status === 400) {
-    let err: any = null
+    let err = null
     try {
       err = await res.json()
     } catch {
@@ -349,12 +275,12 @@ async function finalizeUpload(
  *    restarting.
  * 4. Return the hash on success.
  *
- * @throws {import('./blobCrypto.ts').BlobKeyUnavailableError} if the key is absent.
+ * @throws {import('./blobCrypto.js').BlobKeyUnavailableError} if the key is absent.
  * @throws {VaultConnectionUnavailableError} if the vault connection is not ready.
  * @throws {BlobHashMismatchError} if finalize rejects the declared hash.
  * @throws {BlobTransportError} on other non-OK responses.
  */
-export async function uploadBlob(plaintext: Plaintext, deps: BlobTransportDeps = {}): Promise<string> {
+export async function uploadBlob(plaintext, deps = {}) {
   const conn = resolveConnection(deps)
   const doFetch = resolveFetch(deps)
   const partSize = deps.partSize ?? DEFAULT_PART_SIZE
@@ -383,14 +309,7 @@ export async function uploadBlob(plaintext: Plaintext, deps: BlobTransportDeps =
 
 // ── Download ─────────────────────────────────────────────────────────────────
 
-/** A byte range for partial download. Inclusive, like an HTTP Range header. */
-export interface ByteRange {
-  start: number
-  /** Inclusive end. Omit for "to the end". */
-  end?: number
-}
-
-function rangeHeader(range: ByteRange): string {
+function rangeHeader(range) {
   return range.end === undefined
     ? `bytes=${range.start}-`
     : `bytes=${range.start}-${range.end}`
@@ -406,13 +325,10 @@ function rangeHeader(range: ByteRange): string {
  * @throws {VaultConnectionUnavailableError} if the vault connection is not ready.
  * @throws {BlobTransportError} on a non-OK response.
  */
-export async function downloadBlobBytes(
-  hash: string,
-  deps: BlobTransportDeps & { range?: ByteRange } = {},
-): Promise<Uint8Array> {
+export async function downloadBlobBytes(hash, deps = {}) {
   const conn = resolveConnection(deps)
   const doFetch = resolveFetch(deps)
-  const headers: Record<string, string> = {}
+  const headers = {}
   if (deps.range) headers['Range'] = rangeHeader(deps.range)
   const res = await vaultRequest(conn, doFetch, 'GET', `/blobs/${encodeURIComponent(hash)}`, {
     query: { accountId: conn.accountId },
@@ -426,10 +342,10 @@ export async function downloadBlobBytes(
  * Download a full blob and decrypt it to plaintext. Decryption verifies the
  * GCM tag, so a tampered/corrupt blob fails clearly (the decrypt rejects).
  *
- * @throws {import('./blobCrypto.ts').BlobKeyUnavailableError} if the key is absent.
+ * @throws {import('./blobCrypto.js').BlobKeyUnavailableError} if the key is absent.
  * @throws if the downloaded bytes fail GCM verification (tampered/corrupt).
  */
-export async function downloadBlob(hash: string, deps: BlobTransportDeps = {}): Promise<Uint8Array> {
+export async function downloadBlob(hash, deps = {}) {
   const bytes = await downloadBlobBytes(hash, deps)
   return decryptBlob(bytes, deps.getRootKey)
 }
@@ -439,7 +355,7 @@ export async function downloadBlob(hash: string, deps: BlobTransportDeps = {}): 
 // (on milestone create/delete) is the wiring step — not this module.
 
 /** POST /blobs/:hash/ref-add — increment the reference count for a blob. */
-export async function addBlobRef(hash: string, deps: BlobTransportDeps = {}): Promise<void> {
+export async function addBlobRef(hash, deps = {}) {
   const conn = resolveConnection(deps)
   const doFetch = resolveFetch(deps)
   const res = await vaultRequest(conn, doFetch, 'POST', `/blobs/${encodeURIComponent(hash)}/ref-add`, {
@@ -449,7 +365,7 @@ export async function addBlobRef(hash: string, deps: BlobTransportDeps = {}): Pr
 }
 
 /** POST /blobs/:hash/ref-release — decrement the reference count for a blob. */
-export async function releaseBlobRef(hash: string, deps: BlobTransportDeps = {}): Promise<void> {
+export async function releaseBlobRef(hash, deps = {}) {
   const conn = resolveConnection(deps)
   const doFetch = resolveFetch(deps)
   const res = await vaultRequest(conn, doFetch, 'POST', `/blobs/${encodeURIComponent(hash)}/ref-release`, {
