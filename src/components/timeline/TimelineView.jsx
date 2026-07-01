@@ -817,8 +817,14 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
       if (thumbHash) updates.thumbnail_id = thumbHash
       return await updateMilestone(milestone.id, updates, milestone)
     } catch (err) {
-      console.warn('[media] vault blob sync deferred (kept local, retriable):', err)
-      showToast(t('mediaVaultDeferred'), 'info')
+      // Behavior unchanged (kept local, retriable, slots left as placeholders).
+      // TEMPORARY DIAGNOSTIC: surface the real error name+message on-screen so a
+      // non-debuggable release build reveals WHY the blob upload failed
+      // (BlobKeyUnavailableError / ThumbnailGenerationError / VaultError / …).
+      console.error('[media] vault blob sync deferred (kept local, retriable):', err)
+      const name = err?.name || 'Error'
+      const message = err?.message || String(err)
+      showToast(`Media sync deferred: ${name}: ${message}`, 'error')
       return milestone
     }
   }
