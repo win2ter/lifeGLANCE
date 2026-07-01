@@ -456,3 +456,48 @@ describe('blobTransport — auth', () => {
     ).rejects.toThrow()
   })
 })
+
+// ── HEAD dedup is non-fatal when the transport itself chokes on HEAD ──────────
+// The existence check is a dedup OPTIMIZATION. On native, CapacitorHttp over
+// HttpURLConnection can reject/choke on a bodyless HEAD and the adapter THROWS
+// (a transport-level failure, not an HTTP status). That must NOT abort the whole
+// upload — initiate is idempotent on the hash and finalize re-verifies, so we
+// proceed as "not known present" and upload anyway (never data loss). A wrong
+// token / server 5xx still comes back as an HTTP STATUS (handled above), not a
+// throw, so those keep surfacing.
+describe('blobTransport — HEAD throw is non-fatal (native HEAD choke)', () => {
+  // Wrap a server so an actual HEAD request rejects at the transport level,
+  // as the native adapter would when the HTTP stack cannot perform the HEAD.
+  const headThrows = (server) => (url, init) => {
+    if (init.method === 'HEAD') return Promise.reject(new Error('native HEAD not supported'))
+    return server.fetchImpl(url, init)
+  }
+
+  it('blobExists returns false (not a throw) when the HEAD request throws', async () => {
+    const server = makeVaultServer()
+    const { hash } = await encryptBlob(enc('present?'), provideKey)
+    // Even though the blob IS present server-side, a throwing HEAD → "not known present".
+    await uploadBlob(enc('present?'), depsFor(server))
+    expect(server.blobs.has(hash)).toBe(true)
+    const exists = await blobExists(hash, depsFor(server, { fetchImpl: headThrows(server) }))
+    expect(exists).toBe(false)
+  })
+
+  it('uploadBlob still completes (initiate/parts/finalize) when the dedup HEAD throws', async () => {
+    const server = makeVaultServer()
+    const plaintext = enc('upload despite a broken HEAD ' + 'y'.repeat(200))
+    const deps = depsFor(server, { fetchImpl: headThrows(server), partSize: 64 })
+
+    const hash = await uploadBlob(plaintext, deps)
+
+    // The HEAD threw and was swallowed, so the upload proceeded end-to-end.
+    expect(server.calls.head).toBe(0) // no HEAD ever reached the server (it threw first)
+    expect(server.calls.initiate).toBe(1)
+    expect(server.calls.finalize).toBe(1)
+    expect(server.blobs.has(hash)).toBe(true)
+
+    // And it's a real, decryptable round-trip.
+    const out = await downloadBlob(hash, depsFor(server))
+    expect([...out]).toEqual([...plaintext])
+  })
+})
