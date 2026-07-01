@@ -23,11 +23,16 @@
 //     a body field on the JSON POSTs (initiate / finalize / ref-add / ref-release).
 //
 // THE SERVER CONTRACT (all device-token auth, account-scoped):
-//   HEAD /blobs/:hash                      → 200 exists / 404 absent
-//   POST /blobs/uploads                    → initiate (idempotent on hash) { uploadId }
+//   HEAD /blobs/:hash          (?accountId) → 200 exists / 404 absent
+//   POST /blobs/uploads                     → initiate; body { accountId, blobHash,
+//        size }. 200 { exists:true } if already stored (dedup), else 201
+//        { uploadId, received:[] }. (The content-hash field is `blobHash`; the
+//        server picks part boundaries, so partSize is NOT sent.)
 //   PUT  /blobs/uploads/:id/parts/:i       → store one part (raw octet-stream body)
-//   GET  /blobs/uploads/:id                → resume point { received:[i,...], partSize, size }
-//   POST /blobs/uploads/:id/finalize       → reassemble, VERIFY hash, store
+//   GET  /blobs/uploads/:id                → resume point { received:[{index,size}], size }
+//   POST /blobs/uploads/:id/finalize       → reassemble, VERIFY hash, store; body
+//        { accountId } (declared hash is the session's). 400 with an "hash
+//        mismatch…" body + declared/computed on a mismatch.
 //   GET  /blobs/:hash       (Range)        → download (full or partial) stored bytes
 //   POST /blobs/:hash/ref-add | ref-release→ reference tracking
 //
@@ -237,16 +242,28 @@ function splitIntoParts(bytes, partSize) {
   return parts
 }
 
-/** POST /blobs/uploads — initiate (idempotent on hash) → uploadId. */
-async function initiateUpload(conn, doFetch, hash, size, partSize) {
+/**
+ * POST /blobs/uploads — initiate (idempotent on hash).
+ *
+ * Server contract: the content hash field is `blobHash` (a 64-char lowercase hex
+ * sha256); the body also carries `accountId` and `size`. The server chooses the
+ * part boundaries, so `partSize` is NOT sent (the client splits locally for the
+ * PUTs). Two success shapes:
+ *   • 200 { exists: true }          — the server already holds these bytes (dedup
+ *                                     at initiate; there is no upload session).
+ *   • 201 { uploadId, received:[] } — a new/resumable upload session.
+ * Returns { exists: true } or { uploadId }.
+ */
+async function initiateUpload(conn, doFetch, hash, size) {
   const res = await vaultRequest(conn, doFetch, 'POST', '/blobs/uploads', {
-    jsonBody: { accountId: conn.accountId, hash, size, partSize },
+    jsonBody: { accountId: conn.accountId, blobHash: hash, size },
   })
   const body = await jsonOrThrow(res, 'initiate upload')
+  if (body && body.exists === true) return { exists: true }
   if (!body || typeof body.uploadId !== 'string') {
     throw new BlobTransportError('initiate upload: missing uploadId in response', res.status)
   }
-  return body.uploadId
+  return { uploadId: body.uploadId }
 }
 
 /** GET /blobs/uploads/:id — which part indices the server already holds. */
@@ -256,7 +273,13 @@ async function getResumePoint(conn, doFetch, uploadId) {
   })
   const body = await jsonOrThrow(res, 'resume point')
   const received = Array.isArray(body?.received) ? body.received : []
-  return new Set(received)
+  // The server reports received parts as `{ index, size }` objects. Normalize to
+  // a Set of the integer indices (tolerating a bare-index shape too), so the
+  // resume skip-check below matches part numbers rather than whole objects.
+  const indices = received
+    .map((p) => (typeof p === 'number' ? p : p?.index))
+    .filter((i) => Number.isInteger(i))
+  return new Set(indices)
 }
 
 /** PUT /blobs/uploads/:id/parts/:i — send one part (raw bytes). */
@@ -273,14 +296,18 @@ async function putPart(conn, doFetch, uploadId, index, part) {
   }
 }
 
-/** POST /blobs/uploads/:id/finalize — reassemble + verify hash + store. */
+/**
+ * POST /blobs/uploads/:id/finalize — reassemble + verify hash + store.
+ * The declared hash is captured server-side at initiate (from the session), so
+ * the finalize body carries only `accountId`; a `hash` here would be ignored.
+ */
 async function finalizeUpload(conn, doFetch, uploadId, hash) {
   const res = await vaultRequest(
     conn,
     doFetch,
     'POST',
     `/blobs/uploads/${encodeURIComponent(uploadId)}/finalize`,
-    { jsonBody: { accountId: conn.accountId, hash } },
+    { jsonBody: { accountId: conn.accountId } },
   )
   if (res.ok) return
   // Read the body ONCE (it may only be readable once), then inspect it: the server
@@ -299,7 +326,16 @@ async function finalizeUpload(conn, doFetch, uploadId, hash) {
     } catch {
       /* not JSON — fall through to generic */
     }
-    if (err && err.error === 'hash_mismatch') throw new BlobHashMismatchError(hash)
+    // The server returns a 400 whose message begins "hash mismatch: ..." and
+    // includes `declared`/`computed` hashes. Recognise either signal (the exact
+    // token, the message prefix, or the declared+computed pair).
+    if (err && (
+      err.error === 'hash_mismatch' ||
+      /hash mismatch/i.test(err.error || '') ||
+      ('declared' in err && 'computed' in err)
+    )) {
+      throw new BlobHashMismatchError(hash)
+    }
   }
   const detail = bodyText.trim() ? ` — ${bodyText.trim().slice(0, 300)}` : ''
   throw new BlobTransportError(`finalize failed: ${res.status}${detail}`, res.status)
@@ -332,12 +368,17 @@ export async function uploadBlob(plaintext, deps = {}) {
   // network call — so nothing is sent and the caller can hold/retry.
   const { bytes, hash } = await encryptBlob(plaintext, deps.getRootKey)
 
-  // Dedup: if the server already has these exact bytes, we're done.
+  // Dedup: if the server already has these exact bytes, we're done. On native the
+  // HEAD probe may be non-fatally skipped (returns false), so initiate ALSO dedups
+  // below — the two together cover both transports.
   if (await blobExists(hash, deps)) return hash
 
   // Resumable upload. Initiate is idempotent on the hash, so a retry after an
-  // interruption returns the same session with its already-received parts.
-  const uploadId = await initiateUpload(conn, doFetch, hash, bytes.length, partSize)
+  // interruption returns the same session with its already-received parts — and if
+  // the server already holds the bytes it reports { exists: true } and we're done.
+  const initiated = await initiateUpload(conn, doFetch, hash, bytes.length)
+  if (initiated.exists) return hash
+  const uploadId = initiated.uploadId
   const received = await getResumePoint(conn, doFetch, uploadId)
 
   const parts = splitIntoParts(bytes, partSize)

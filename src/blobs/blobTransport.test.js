@@ -134,32 +134,37 @@ function makeVaultServer({ token = TOKEN, accountId = ACCOUNT } = {}) {
       return binRes(200, rec.bytes)
     }
 
-    // POST /blobs/uploads  (initiate, idempotent on hash; accountId in body)
+    // POST /blobs/uploads  (initiate; accountId + blobHash + size in body).
+    // Mirrors the real server: the hash field is `blobHash`, `partSize` is NOT
+    // read (the client splits locally), success is 201 { uploadId, received:[] }
+    // for a new session or 200 { exists:true } when the bytes are already stored.
     if (method === 'POST' && path === '/blobs/uploads') {
       calls.initiate++
       if (jsonBody.accountId !== accountId) return jsonRes(400, { error: 'accountId required' })
-      let uploadId = hashToUpload.get(jsonBody.hash)
+      if (typeof jsonBody.blobHash !== 'string' || !/^[0-9a-f]{64}$/.test(jsonBody.blobHash)) {
+        return jsonRes(400, { error: 'blobHash must be a 64-character hex sha256' })
+      }
+      if (!Number.isInteger(jsonBody.size) || jsonBody.size < 0) {
+        return jsonRes(400, { error: 'size must be a non-negative integer' })
+      }
+      if (blobs.has(jsonBody.blobHash)) return jsonRes(200, { exists: true, blobHash: jsonBody.blobHash })
+      let uploadId = hashToUpload.get(jsonBody.blobHash)
       if (!uploadId) {
         uploadId = `up-${nextId++}`
-        sessions.set(uploadId, {
-          hash: jsonBody.hash,
-          size: jsonBody.size,
-          partSize: jsonBody.partSize,
-          parts: new Map(),
-        })
-        hashToUpload.set(jsonBody.hash, uploadId)
+        sessions.set(uploadId, { hash: jsonBody.blobHash, size: jsonBody.size, parts: new Map() })
+        hashToUpload.set(jsonBody.blobHash, uploadId)
       }
-      return jsonRes(200, { uploadId })
+      return jsonRes(201, { uploadId, blobHash: jsonBody.blobHash, received: [] })
     }
 
-    // GET /blobs/uploads/:id  (resume point)
+    // GET /blobs/uploads/:id  (resume point; received parts as { index, size } objects)
     if (method === 'GET' && (m = path.match(/^\/blobs\/uploads\/([^/]+)$/))) {
       calls.resume++
       const s = sessions.get(decodeURIComponent(m[1]))
       if (!s) return jsonRes(404, { error: 'no_session' })
+      const indices = [...s.parts.keys()].sort((a, b) => a - b)
       return jsonRes(200, {
-        received: [...s.parts.keys()].sort((a, b) => a - b),
-        partSize: s.partSize,
+        received: indices.map((i) => ({ index: i, size: s.parts.get(i).length })),
         size: s.size,
       })
     }
@@ -177,7 +182,7 @@ function makeVaultServer({ token = TOKEN, accountId = ACCOUNT } = {}) {
       }
       s.parts.set(i, new Uint8Array(init.body)) // store a copy of the part bytes
       partPuts.push(i)
-      return jsonRes(200, { received: i })
+      return jsonRes(200, { index: i, size: s.parts.get(i).length })
     }
 
     // POST /blobs/uploads/:id/finalize  (reassemble + VERIFY hash + store)
@@ -196,13 +201,21 @@ function makeVaultServer({ token = TOKEN, accountId = ACCOUNT } = {}) {
         reassembled.set(p, off)
         off += p.length
       }
-      // VERIFY: server's hash of reassembled bytes == client's declared hash.
+      // VERIFY: server's hash of reassembled bytes == the SESSION's declared hash
+      // (captured at initiate — the finalize body does not carry a hash). On a
+      // mismatch the real server returns 400 with a sentence + declared/computed.
       const serverHash = await sha256Hex(reassembled)
-      if (serverHash !== jsonBody.hash) return jsonRes(409, { error: 'hash_mismatch' })
+      if (serverHash !== s.hash) {
+        return jsonRes(400, {
+          error: 'hash mismatch: reassembled bytes do not match declared blobHash',
+          declared: s.hash,
+          computed: serverHash,
+        })
+      }
       blobs.set(serverHash, { bytes: reassembled, refs: 0 })
       sessions.delete(decodeURIComponent(m[1]))
       hashToUpload.delete(serverHash)
-      return jsonRes(200, { hash: serverHash, stored: true })
+      return jsonRes(200, { blobHash: serverHash, stored: true })
     }
 
     // POST /blobs/:hash/ref-add | ref-release
@@ -505,6 +518,25 @@ describe('blobTransport — HEAD throw is non-fatal (native HEAD choke)', () => 
     // And it's a real, decryptable round-trip.
     const out = await downloadBlob(hash, depsFor(server))
     expect([...out]).toEqual([...plaintext])
+  })
+
+  it('dedups at initiate ({exists:true}) when HEAD is skipped but the blob is stored', async () => {
+    const server = makeVaultServer()
+    const plaintext = enc('already up there')
+
+    // Store it once (normal path).
+    const hash = await uploadBlob(plaintext, depsFor(server))
+    const after = { ...server.calls }
+
+    // Re-upload with a throwing HEAD (native): the HEAD dedup is skipped, so the
+    // client initiates — and the server reports {exists:true}, short-circuiting
+    // before any parts/finalize.
+    const hash2 = await uploadBlob(plaintext, depsFor(server, { fetchImpl: headThrows(server) }))
+    expect(hash2).toBe(hash)
+    expect(server.calls.head).toBe(after.head) // HEAD never reached the server (threw)
+    expect(server.calls.initiate).toBe(after.initiate + 1) // initiate DID run and dedup
+    expect(server.calls.part).toBe(after.part) // no parts re-sent
+    expect(server.calls.finalize).toBe(after.finalize) // no finalize
   })
 })
 
