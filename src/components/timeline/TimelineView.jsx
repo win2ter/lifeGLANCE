@@ -25,7 +25,7 @@ import { writeMilestoneTombstone } from '../../sync/tombstones'
 import { getSyncEngine } from '../../sync/engine'
 import { dirtyBirthday } from '../../sync/dirty'
 import { readVaultConfig } from '../../sync/dbSync'
-import { uploadMilestoneMedia, releaseMilestoneMedia } from '../../blobs/milestoneMedia.js'
+import { uploadMilestoneMedia, releaseMilestoneMedia, isRealBlobHash, fetchFullResBytes, fetchThumbnailBytes } from '../../blobs/milestoneMedia.js'
 import ChapterSheet from '../chapter/ChapterSheet'
 import CloudSyncModal from '../sync/CloudSyncModal'
 import SyncPassphraseModal from '../sync/SyncPassphraseModal'
@@ -44,6 +44,22 @@ import { isSyncing, SYNC_ERROR_I18N_KEYS } from '../../sync/status.js'
 import { appendActivityEntry } from '../../lib/intentsActivityLog.js'
 import ActivityLogModal from '../dayglance/ActivityLogModal.jsx'
 import { EVENTS } from '@glance-apps/intents'
+
+// A blob-backed photo slot carries no stored mime type (the encrypted bytes are
+// opaque). For a backup data-URI the declared mime matters — restore reads it
+// back from the header — so sniff the image type from the magic bytes rather than
+// mislabel it. Falls back to JPEG (the capture default) for anything unrecognized.
+function sniffImageMime(bytes) {
+  if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg'
+  if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return 'image/png'
+  if (bytes.length >= 6 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) return 'image/gif'
+  if (
+    bytes.length >= 12 &&
+    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+  ) return 'image/webp'
+  return 'image/jpeg'
+}
 
 const ZOOM_RANK = { decades: 5, '30yr': 4, years: 3, months: 2, weeks: 1, custom: 3.5 }
 
@@ -1286,16 +1302,25 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
 
   // ── Backup ───────────────────────────────────────────────────────────────────
   async function handleSaveBackup() {
-    // Collect photos as base64 data-URIs keyed by milestone id
+    // Collect photos as base64 data-URIs keyed by milestone id. A photo synced
+    // from another device lives only as a vault blob (photo_id is a real blob
+    // hash, no local copy), so fetch+decrypt those too — otherwise a backup made
+    // on the receiving device would silently omit every synced-in photo.
     const photos = {}
     for (const m of milestones) {
       if (!m.has_photo) continue
       try {
-        const result = await dbGetPhoto(m.id)
-        if (!result) continue
-        const buf = await result.blob.arrayBuffer()
-        const b64 = btoa([...new Uint8Array(buf)].map(b => String.fromCharCode(b)).join(''))
-        photos[m.id] = `data:${result.mimeType};base64,${b64}`
+        let bytes, mimeType
+        if (isRealBlobHash(m.photo_id)) {
+          const b = await fetchFullResBytes(m.photo_id)
+          if (b) { bytes = b; mimeType = sniffImageMime(b) }
+        } else {
+          const result = await dbGetPhoto(m.id)
+          if (result) { bytes = new Uint8Array(await result.blob.arrayBuffer()); mimeType = result.mimeType }
+        }
+        if (!bytes) continue
+        const b64 = btoa([...bytes].map(b => String.fromCharCode(b)).join(''))
+        photos[m.id] = `data:${mimeType};base64,${b64}`
       } catch { /* skip unreadable photo */ }
     }
 
@@ -1630,20 +1655,31 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
     return () => document.removeEventListener('click', close)
   }, [watchMenuOpen])
 
-  // Load the current event's photo (if any) for the watch-mode backdrop.
+  // Load the current event's photo (if any) for the watch-mode backdrop. A photo
+  // synced from another device lives only as a vault blob (photo_id is a real blob
+  // hash, no local copy), so fetch+decrypt it — mirroring MilestoneDetail — instead
+  // of only reading the local store (which returned nothing, so no backdrop showed).
+  // Thumbnail-first keeps a tour from pulling full-res on every hop.
   const [idlePhotoUrl, setIdlePhotoUrl] = useState(null)
   const idleEventId = idle.currentEvent?.id
   const idleHasPhoto = !!idle.currentEvent?.has_photo
+  const idlePhotoId = idle.currentEvent?.photo_id
   useEffect(() => {
     if (!idle.active || !idleHasPhoto || !idleEventId) { setIdlePhotoUrl(null); return }
     let url, cancelled = false
-    dbGetPhoto(idleEventId).then(res => {
-      if (cancelled || !res) return
-      url = URL.createObjectURL(res.blob)
+    const show = (blob) => {
+      if (cancelled || !blob) return
+      url = URL.createObjectURL(blob)
       setIdlePhotoUrl(url)
-    }).catch(() => {})
+    }
+    if (isRealBlobHash(idlePhotoId)) {
+      // Untyped image blob — <img> content-sniffs it (same as MilestoneDetail).
+      fetchThumbnailBytes(idlePhotoId).then(b => show(b && new Blob([b]))).catch(() => {})
+    } else {
+      dbGetPhoto(idleEventId).then(res => show(res?.blob)).catch(() => {})
+    }
     return () => { cancelled = true; if (url) URL.revokeObjectURL(url) }
-  }, [idle.active, idleEventId, idleHasPhoto])
+  }, [idle.active, idleEventId, idleHasPhoto, idlePhotoId])
 
   // While watching, spotlight the current event's card (built-in glow + scale).
   const timelineHighlighted = idle.active
