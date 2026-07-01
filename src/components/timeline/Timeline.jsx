@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { dateToX, getTimeRangeForView, getTickMarks, assignLanes, getMsPerPx } from '../../utils/timeline'
 import { relativeLabel, formatDateDisplay, ageAtDate, formatDuration } from '../../utils/dates'
 import { dbGetMedia, dbGetPhoto } from '../../data/db'
-import { isRealBlobHash, fetchThumbnailBytes } from '../../blobs/milestoneMedia.js'
+import { isRealBlobHash, fetchThumbnailBytes, fetchFullResBytes } from '../../blobs/milestoneMedia.js'
 
 // Map text-size labels → root px value (must match TimelineView TEXT_SIZES)
 const REM_PX = { small: 19, normal: 22, big: 26, bigger: 30 }
@@ -187,10 +187,13 @@ const Timeline = forwardRef(function Timeline(
       audioElRef.current = null
       if (playingId === m.id) { setPlayingId(null); return }
     }
-    // Fetch blob lazily and play via a transient object URL
-    dbGetMedia(m.id).then(result => {
-      if (!result) return
-      const url = URL.createObjectURL(result.blob)
+    // Fetch blob lazily and play via a transient object URL. A synced-in audio
+    // lives only as a vault blob (media_id is a real blob hash, no local copy), so
+    // fetch + decrypt it (mirroring MilestoneDetail); a locally authored one reads
+    // the local media store.
+    const play = (blob) => {
+      if (!blob) return
+      const url = URL.createObjectURL(blob)
       const a = new Audio(url)
       a._objectUrl = url
       audioElRef.current = a
@@ -201,7 +204,12 @@ const Timeline = forwardRef(function Timeline(
         audioElRef.current = null
         setPlayingId(null)
       }
-    })
+    }
+    if (isRealBlobHash(m.media_id)) {
+      fetchFullResBytes(m.media_id).then(b => play(b && new Blob([b], { type: 'audio/mpeg' }))).catch(() => {})
+    } else {
+      dbGetMedia(m.id).then(result => play(result?.blob)).catch(() => {})
+    }
   }
 
   // Measure container
