@@ -188,9 +188,21 @@ async function jsonOrThrow(res, context) {
 export async function blobExists(hash, deps = {}) {
   const conn = resolveConnection(deps)
   const doFetch = resolveFetch(deps)
-  const res = await vaultRequest(conn, doFetch, 'HEAD', `/blobs/${encodeURIComponent(hash)}`, {
-    query: { accountId: conn.accountId },
-  })
+  let res
+  try {
+    res = await vaultRequest(conn, doFetch, 'HEAD', `/blobs/${encodeURIComponent(hash)}`, {
+      query: { accountId: conn.accountId },
+    })
+  } catch {
+    // The existence check is a dedup OPTIMIZATION, not a correctness gate. If the
+    // HEAD can't even be performed at the transport level — notably some native
+    // HTTP stacks (CapacitorHttp over HttpURLConnection) reject/choke on HEAD —
+    // don't abort the whole upload. Proceed as "not known present": initiate is
+    // idempotent on the hash and finalize verifies, so a redundant upload is safe
+    // (never data loss). Real HTTP errors still surface — a 401/500 comes back as
+    // a status below, or resurfaces on the subsequent initiate call.
+    return false
+  }
   if (res.ok) return true
   if (res.status === 404) return false
   throw new BlobTransportError(`blob existence check failed: ${res.status}`, res.status)
