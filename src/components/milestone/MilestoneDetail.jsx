@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Capacitor } from '@capacitor/core'
 import { formatDateDisplay, relativeLabel, ageAtDate } from '../../utils/dates'
-import { dbGetMedia, dbGetPhoto } from '../../data/db'
-import { isRealBlobHash, fetchFullResBytes } from '../../blobs/milestoneMedia.js'
+import { dbGetMedia, dbGetPhoto, dbPutMedia } from '../../data/db'
+import { isRealBlobHash, fetchFullResBytes, fetchFullResBytesChunked } from '../../blobs/milestoneMedia.js'
+
+// Bytes → "X.X MB" for the download-progress label.
+const fmtMB = (n) => `${(n / 1048576).toFixed(1)} MB`
 
 const PINS_KEY = 'lifeglance-pins'
 // Color pin slots — each maps to its own countdown widget. Keep in sync with PIN_SLOTS
@@ -23,7 +26,7 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
   const { t: tc } = useTranslation('common')
   const [audioUrl,  setAudioUrl]  = useState(null)
   const [photoUrl,  setPhotoUrl]  = useState(null)
-  const [mediaDiag, setMediaDiag] = useState(null) // TEMP: on-device media state readout
+  const [mediaLoading, setMediaLoading] = useState(null) // { received, total } while downloading a remote clip
   const [confirm,   setConfirm]   = useState(null)
   const [pins,      setPins]      = useState(readPins)
 
@@ -45,49 +48,43 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
     return () => window.removeEventListener('keydown', handler)
   }, [onClose])
 
-  // Media (audio/video): a real-hash media_id resolves from the GLANCEvault blob
-  // store (lazy, on open); a legacy/placeholder slot resolves from the local
-  // media store. A fetch failure (blob not yet uploaded / reclaimed) leaves
-  // audioUrl null → the graceful "media unavailable" placeholder renders below.
+  // Media (audio/video). LOCAL-FIRST: if this device holds the local blob (the
+  // originating device, or one that cached it), stream it straight from IndexedDB
+  // into the <video>/<audio> element — the element ranges over the blob on demand,
+  // so a large (e.g. 89 MB) clip plays without loading + AES-GCM-decrypting the
+  // whole thing into memory (which stalls the WebView). Only when there is NO
+  // local copy (a receiving device that hasn't cached it) do we download + decrypt
+  // the vault blob. A missing blob leaves audioUrl null → the "media unavailable"
+  // placeholder renders below.
   useEffect(() => {
-    if (!m.media_type) { setMediaDiag(null); return }
+    if (!m.media_type) return
     let objectUrl, cancelled = false
     const show = (blob) => {
       if (cancelled || !blob) return
       objectUrl = URL.createObjectURL(blob)
       setAudioUrl(objectUrl)
     }
-    // TEMP DIAGNOSTIC: record the actual on-device media state so a failing case
-    // reveals WHICH layer is at fault — id kind (real vs local placeholder), a
-    // local blob present + its size, and (for a real id) the fetch outcome.
-    const real = isRealBlobHash(m.media_id)
-    const parts = [`type=${m.media_type}`, real ? `id=real:${String(m.media_id).slice(0, 10)}` : 'id=placeholder']
-    const mb = (n) => `${(n / 1048576).toFixed(1)}MB`
-    // Set SYNCHRONOUSLY so the line renders immediately — its presence proves this
-    // (DIAG3) build is actually running (vs a stale cached bundle); its absence
-    // means the app is serving old code.
-    setMediaDiag(`DIAG3 · ${parts.join(' · ')} · probing local…`)
-    // Bound the local read so a stall shows up instead of leaving the line stuck.
-    const withTimeout = (p, ms, label) =>
-      Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(`${label} timeout ${ms}ms`)), ms))])
-    // Always probe the local store (even for a real id) so we know whether a local
-    // copy exists on this device.
-    withTimeout(dbGetMedia(m.id), 8000, 'dbGetMedia').then(result => {
+    dbGetMedia(m.id).then(local => {
       if (cancelled) return
-      parts.push(result?.blob ? `local=${mb(result.blob.size)}` : 'local=NONE')
-      if (real) {
-        const type = m.media_type === 'video' ? 'video/mp4' : 'audio/mpeg'
-        fetchFullResBytes(m.media_id).then(b => {
-          if (cancelled) return
-          if (b) { parts.push(`fetch=${mb(b.length)}`); show(new Blob([b], { type })) }
-          else parts.push('fetch=null')
-          setMediaDiag('DIAG3 · ' + parts.join(' · '))
-        }).catch(e => { if (!cancelled) { parts.push(`fetch!=${e?.name || 'err'}:${String(e?.message || '').slice(0, 40)}`); setMediaDiag('DIAG3 · ' + parts.join(' · ')) } })
-      } else {
-        show(result?.blob)
-        setMediaDiag('DIAG3 · ' + parts.join(' · '))
-      }
-    }).catch(e => { if (!cancelled) { parts.push(`local!=${String(e?.message || e).slice(0, 40)}`); setMediaDiag('DIAG3 · ' + parts.join(' · ')) } })
+      if (local?.blob) { show(local.blob); return } // local-first: no download needed
+      if (!isRealBlobHash(m.media_id)) return
+      // No local copy (a receiving device): download the blob in bounded chunks so a
+      // large video doesn't stall the WebView, decrypt, cache it locally so the next
+      // open is instant (local-first), then play. Progress drives the label below.
+      const type = m.media_type === 'video' ? 'video/mp4' : 'audio/mpeg'
+      setMediaLoading({ received: 0, total: null })
+      fetchFullResBytesChunked(m.media_id, {
+        onProgress: (received, total) => { if (!cancelled) setMediaLoading({ received, total }) },
+      }).then(async bytes => {
+        if (cancelled) return
+        if (!bytes) { setMediaLoading(null); return }
+        const blob = new Blob([bytes], { type })
+        try { await dbPutMedia(m.id, blob, type) } catch { /* cache is best-effort */ }
+        if (cancelled) return
+        setMediaLoading(null)
+        show(blob)
+      }).catch(() => { if (!cancelled) setMediaLoading(null) })
+    }).catch(() => {})
     return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl) }
   }, [m.id, m.media_type, m.media_id])
 
@@ -189,12 +186,15 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
         )}
         {m.media_type && !audioUrl && (
           <div className="detail-audio-wrap detail-media-unavailable">
-            <span className="detail-media-unavailable-label">{t('mediaSyncedFromDevice')}</span>
-            {mediaDiag && (
-              <span style={{ display: 'block', marginTop: 4, fontSize: '0.68rem', opacity: 0.75, wordBreak: 'break-all', fontFamily: 'monospace' }}>
-                {mediaDiag}
-              </span>
-            )}
+            <span className="detail-media-unavailable-label">
+              {mediaLoading
+                ? t('mediaDownloading', {
+                    progress: mediaLoading.total
+                      ? `${fmtMB(mediaLoading.received)} / ${fmtMB(mediaLoading.total)}`
+                      : fmtMB(mediaLoading.received),
+                  })
+                : t('mediaSyncedFromDevice')}
+            </span>
           </div>
         )}
 

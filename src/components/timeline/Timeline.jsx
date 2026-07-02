@@ -205,11 +205,14 @@ const Timeline = forwardRef(function Timeline(
         setPlayingId(null)
       }
     }
-    if (isRealBlobHash(m.media_id)) {
-      fetchFullResBytes(m.media_id).then(b => play(b && new Blob([b], { type: 'audio/mpeg' }))).catch(() => {})
-    } else {
-      dbGetMedia(m.id).then(result => play(result?.blob)).catch(() => {})
-    }
+    // LOCAL-FIRST: play the local copy when this device has it (no download); only
+    // fetch from the vault when there's no local blob (a receiving device).
+    dbGetMedia(m.id).then(result => {
+      if (result?.blob) { play(result.blob); return }
+      if (isRealBlobHash(m.media_id)) {
+        fetchFullResBytes(m.media_id).then(b => play(b && new Blob([b], { type: 'audio/mpeg' }))).catch(() => {})
+      }
+    }).catch(() => {})
   }
 
   // Measure container

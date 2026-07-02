@@ -827,27 +827,22 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
   async function establishVaultMediaRefs(milestone, file, slot) {
     if (!file || !readVaultConfig()) return milestone
     try {
-      // TEMP DIAGNOSTIC (DIAG3): make the whole media upload path visible on-device.
-      // A start toast proves this fresh build ran establish for the media slot; a
-      // success/timeout/error toast reveals what happened (the audio clue says the
-      // upload silently never completes for media, which no poster is involved in).
-      const sizeMB = (file.size / 1048576).toFixed(1)
-      showToast(`DIAG3 · uploading ${slot} ${sizeMB}MB ${file.type || '?'}…`)
       const bytes = new Uint8Array(await file.arrayBuffer())
+      // Bound the upload so a stuck request surfaces as a retriable error instead
+      // of hanging silently (the slot is never left half-written).
       const withTimeout = (p, ms) =>
         Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(`upload timed out after ${Math.round(ms / 1000)}s`)), ms))])
       const { fullHash, thumbHash } = await withTimeout(uploadMilestoneMedia({ bytes, mimeType: file.type }), 120000)
       const updates = slot === 'photo' ? { photo_id: fullHash } : { media_id: fullHash }
       if (thumbHash) updates.thumbnail_id = thumbHash
-      const updated = await updateMilestone(milestone.id, updates, milestone)
-      showToast(`DIAG3 · ${slot} uploaded ✓ id=${String(fullHash).slice(0, 8)} thumb=${thumbHash ? 'yes' : 'no'}`)
-      return updated
+      return await updateMilestone(milestone.id, updates, milestone)
     } catch (err) {
-      // Behavior unchanged (kept local, retriable, slots left as placeholders).
+      // Kept local, retriable, slots left as placeholders. Surface the reason so a
+      // release build isn't a silent no-op.
       console.error('[media] vault blob sync deferred (kept local, retriable):', err)
       const name = err?.name || 'Error'
       const message = err?.message || String(err)
-      showToast(`DIAG3 · ${slot} sync FAILED: ${name}: ${message}`, 'error')
+      showToast(`Media sync deferred: ${name}: ${message}`, 'error')
       return milestone
     }
   }

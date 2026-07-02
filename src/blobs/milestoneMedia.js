@@ -33,6 +33,7 @@
 import {
   uploadBlob as _uploadBlob,
   downloadBlob as _downloadBlob,
+  downloadBlobChunked as _downloadBlobChunked,
   addBlobRef as _addBlobRef,
   releaseBlobRef as _releaseBlobRef,
 } from './blobTransport.js'
@@ -159,4 +160,18 @@ export function fetchFullResBytes(hash, deps = {}) {
   if (!isRealBlobHash(hash)) return Promise.resolve(null)
   const downloadBlob = deps.downloadBlob ?? _downloadBlob
   return downloadBlob(hash)
+}
+
+/**
+ * Chunked, low-memory fetch + decrypt of full-res media bytes by hash — for large
+ * audio/video on native, where a single-shot download of the whole blob is
+ * marshalled across the JS bridge as one huge base64 string and stalls the WebView.
+ * Downloads in bounded ranges instead. Returns null for a non-real-hash slot.
+ * `deps.onProgress(receivedBytes, totalBytes|null)` reports progress. Rejects on
+ * fetch/decrypt failure.
+ */
+export function fetchFullResBytesChunked(hash, deps = {}) {
+  if (!isRealBlobHash(hash)) return Promise.resolve(null)
+  const downloadBlobChunked = deps.downloadBlobChunked ?? _downloadBlobChunked
+  return downloadBlobChunked(hash, deps)
 }

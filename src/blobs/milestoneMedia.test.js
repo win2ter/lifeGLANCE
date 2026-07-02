@@ -9,6 +9,7 @@ import {
   releaseMilestoneMedia,
   fetchThumbnailBytes,
   fetchFullResBytes,
+  fetchFullResBytesChunked,
   clearThumbnailCache,
 } from './milestoneMedia.js'
 
@@ -160,5 +161,15 @@ describe('display fetch — cache + discrimination', () => {
     expect(await fetchFullResBytes(HASH_A, { downloadBlob })).toEqual(new Uint8Array([1]))
     expect(await fetchFullResBytes('uuid', { downloadBlob })).toBeNull()
     expect(downloadBlob).toHaveBeenCalledTimes(1)
+  })
+
+  it('fetchFullResBytesChunked routes through the chunked download; null for a placeholder; forwards deps', async () => {
+    let seenDeps = null
+    const downloadBlobChunked = vi.fn(async (hash, deps) => { seenDeps = deps; return new Uint8Array([4, 5, 6]) })
+    const onProgress = () => {}
+    expect(await fetchFullResBytesChunked(HASH_A, { downloadBlobChunked, onProgress })).toEqual(new Uint8Array([4, 5, 6]))
+    expect(seenDeps.onProgress).toBe(onProgress) // progress callback threaded to the transport
+    expect(await fetchFullResBytesChunked('uuid', { downloadBlobChunked })).toBeNull() // placeholder → no download
+    expect(downloadBlobChunked).toHaveBeenCalledTimes(1)
   })
 })
