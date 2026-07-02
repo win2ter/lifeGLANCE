@@ -123,6 +123,16 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
   function doDelete()       { onDelete(m.id); onClose() }
   function doDeleteSeries() { onDeleteSeries(m.recurrence_id); onClose() }
 
+  // Label for the media-unavailable / downloading state (shared by the plain and
+  // poster-backed renders below).
+  const mediaLabel = mediaLoading
+    ? t('mediaDownloading', {
+        progress: mediaLoading.total
+          ? `${fmtMB(mediaLoading.received)} / ${fmtMB(mediaLoading.total)}`
+          : fmtMB(mediaLoading.received),
+      })
+    : t('mediaSyncedFromDevice')
+
   return (
     <div className="sheet-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="sheet">
@@ -200,17 +210,24 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
           </div>
         )}
         {m.media_type && !audioUrl && (
-          <div className="detail-audio-wrap detail-media-unavailable">
-            <span className="detail-media-unavailable-label">
-              {mediaLoading
-                ? t('mediaDownloading', {
-                    progress: mediaLoading.total
-                      ? `${fmtMB(mediaLoading.received)} / ${fmtMB(mediaLoading.total)}`
-                      : fmtMB(mediaLoading.received),
-                  })
-                : t('mediaSyncedFromDevice')}
-            </span>
-          </div>
+          posterUrl && m.media_type === 'video' ? (
+            // Show the poster frame with the status (e.g. "Downloading… X.X MB")
+            // overlaid, so a large video previews immediately while it downloads.
+            <div className="detail-audio-wrap" style={{ position: 'relative', display: 'inline-block', lineHeight: 0 }}>
+              <img src={posterUrl} alt="" className="detail-video" />
+              <div style={{
+                position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(0,0,0,0.4)', color: '#fff', fontSize: '0.85rem', lineHeight: 1.3,
+                textAlign: 'center', padding: '0.5rem', borderRadius: 'inherit',
+              }}>
+                {mediaLabel}
+              </div>
+            </div>
+          ) : (
+            <div className="detail-audio-wrap detail-media-unavailable">
+              <span className="detail-media-unavailable-label">{mediaLabel}</span>
+            </div>
+          )
         )}
 
         {/* Note */}
