@@ -42,6 +42,7 @@
   "completedInDayglance": "completed in dayGLANCE",
   "photoSyncedFromDevice": "📷 Photo stored on originating device",
   "mediaSyncedFromDevice": "🎬 Audio/video stored on originating device",
+  "mediaDownloading": "⬇️ Downloading… {{progress}}",
   "visTabInherit": "inherit",
   "visTabShown": "shown",
   "visTabHidden": "hidden",

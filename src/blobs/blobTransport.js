@@ -437,6 +437,85 @@ export async function downloadBlob(hash, deps = {}) {
   return decryptBlob(bytes, deps.getRootKey)
 }
 
+/** Default chunk size for a ranged, low-memory blob download: 4 MiB. */
+export const DEFAULT_DOWNLOAD_CHUNK = 4 * 1024 * 1024
+
+// Parse the total size out of a "Content-Range: bytes start-end/total" header.
+function contentRangeTotal(res) {
+  try {
+    const cr = res.headers?.get?.('content-range')
+    const m = cr && /\/(\d+)\s*$/.exec(cr)
+    return m ? Number(m[1]) : null
+  } catch { return null }
+}
+
+/**
+ * Download the raw STORED bytes ([nonce || ciphertext]) in sequential RANGE chunks
+ * and assemble them, instead of in one giant response. On native (CapacitorHttp), a
+ * single large response is marshalled across the JS bridge as one enormous base64
+ * string, which stalls/OOMs the WebView for big media; fetching in bounded chunks
+ * keeps each bridge transfer small. Termination is by a short/empty final chunk (or
+ * the known total from Content-Range), so no upfront size request is needed.
+ *
+ * @param deps.chunkSize   bytes per range request (default DEFAULT_DOWNLOAD_CHUNK)
+ * @param deps.onProgress  (receivedBytes, totalBytes|null) => void
+ * @throws {BlobTransportError} on a non-OK response.
+ */
+export async function downloadBlobBytesChunked(hash, deps = {}) {
+  const conn = resolveConnection(deps)
+  const doFetch = resolveFetch(deps)
+  const chunkSize = deps.chunkSize ?? DEFAULT_DOWNLOAD_CHUNK
+  const onProgress = typeof deps.onProgress === 'function' ? deps.onProgress : null
+
+  let total = null
+  let out = null // preallocated once total is known (avoids a second assembly copy)
+  const chunks = [] // fallback assembly when total is unknown
+  let offset = 0
+
+  for (;;) {
+    const res = await vaultRequest(conn, doFetch, 'GET', `/blobs/${encodeURIComponent(hash)}`, {
+      query: { accountId: conn.accountId },
+      headers: { Range: `bytes=${offset}-${offset + chunkSize - 1}` },
+      responseType: 'arraybuffer',
+    })
+    if (res.status === 416) break // requested past the end → done
+    if (!res.ok) {
+      throw new BlobTransportError(`download failed: ${res.status}${await readErrorBody(res)}`, res.status)
+    }
+    if (total == null) total = contentRangeTotal(res)
+    const buf = new Uint8Array(await res.arrayBuffer())
+    if (buf.length > 0) {
+      if (out == null && total != null) out = new Uint8Array(total)
+      if (out) out.set(buf, offset)
+      else chunks.push(buf)
+      offset += buf.length
+      if (onProgress) onProgress(offset, total)
+    }
+    // Done when: the server ignored Range and sent the whole blob (200), this was
+    // the final (short) chunk, or we've reached the known total.
+    if (res.status === 200) break
+    if (buf.length < chunkSize) break
+    if (total != null && offset >= total) break
+  }
+
+  if (out) return out
+  if (chunks.length === 1) return chunks[0]
+  const size = chunks.reduce((n, c) => n + c.length, 0)
+  const merged = new Uint8Array(size)
+  let p = 0
+  for (const c of chunks) { merged.set(c, p); p += c.length }
+  return merged
+}
+
+/**
+ * Chunked download + decrypt to plaintext — the low-memory sibling of
+ * {@link downloadBlob} for large media on native. Verifies the GCM tag on decrypt.
+ */
+export async function downloadBlobChunked(hash, deps = {}) {
+  const bytes = await downloadBlobBytesChunked(hash, deps)
+  return decryptBlob(bytes, deps.getRootKey)
+}
+
 // ── Reference tracking ───────────────────────────────────────────────────────
 // Thin wrappers over the server's ref-add / ref-release. WHEN these are called
 // (on milestone create/delete) is the wiring step — not this module.

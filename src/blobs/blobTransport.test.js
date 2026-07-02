@@ -4,6 +4,8 @@ import {
   uploadBlob,
   downloadBlob,
   downloadBlobBytes,
+  downloadBlobBytesChunked,
+  downloadBlobChunked,
   blobExists,
   addBlobRef,
   releaseBlobRef,
@@ -84,12 +86,13 @@ function makeVaultServer({ token = TOKEN, accountId = ACCOUNT } = {}) {
     text: async () => JSON.stringify(obj),
     arrayBuffer: async () => new TextEncoder().encode(JSON.stringify(obj)).buffer,
   })
-  const binRes = (status, bytes) => ({
+  const binRes = (status, bytes, hdrs = {}) => ({
     ok: status >= 200 && status < 300,
     status,
     arrayBuffer: async () => new Uint8Array(bytes).buffer,
     text: async () => '',
     json: async () => { throw new Error('not json') },
+    headers: { get: (n) => hdrs[String(n).toLowerCase()] ?? null },
   })
   const emptyRes = (status) => ({
     ok: status >= 200 && status < 300,
@@ -128,8 +131,9 @@ function makeVaultServer({ token = TOKEN, accountId = ACCOUNT } = {}) {
       if (range) {
         const mr = range.match(/^bytes=(\d+)-(\d*)$/)
         const start = Number(mr[1])
-        const end = mr[2] === '' ? rec.bytes.length - 1 : Number(mr[2])
-        return binRes(206, rec.bytes.subarray(start, end + 1))
+        const end = Math.min(mr[2] === '' ? rec.bytes.length - 1 : Number(mr[2]), rec.bytes.length - 1)
+        if (start > rec.bytes.length - 1) return binRes(416, new Uint8Array(0))
+        return binRes(206, rec.bytes.subarray(start, end + 1), { 'content-range': `bytes ${start}-${end}/${rec.bytes.length}` })
       }
       return binRes(200, rec.bytes)
     }
@@ -402,6 +406,65 @@ describe('blobTransport — range download', () => {
     // Open-ended range (start..end-of-blob).
     const tail = await downloadBlobBytes(hash, { ...deps, range: { start: stored.length - 5 } })
     expect([...tail]).toEqual([...stored.slice(stored.length - 5)])
+  })
+})
+
+// ── Chunked download (low-memory large-media path) ───────────────────────────
+
+describe('blobTransport — chunked range download', () => {
+  it('assembles the full stored bytes across range chunks, identical to a single download', async () => {
+    const server = makeVaultServer()
+    const plaintext = randomBytes(1000)
+    const deps = depsFor(server, { partSize: 256 })
+    const hash = await uploadBlob(plaintext, deps)
+
+    const whole = await downloadBlobBytes(hash, deps)
+    const chunked = await downloadBlobBytesChunked(hash, { ...deps, chunkSize: 64 })
+    expect([...chunked]).toEqual([...whole])
+  })
+
+  it('downloadBlobChunked decrypts to the original plaintext', async () => {
+    const server = makeVaultServer()
+    const plaintext = randomBytes(700)
+    const deps = depsFor(server, { partSize: 256 })
+    const hash = await uploadBlob(plaintext, deps)
+    const out = await downloadBlobChunked(hash, { ...deps, chunkSize: 128 })
+    expect(await sha256Hex(out)).toBe(await sha256Hex(plaintext))
+  })
+
+  it('reports progress up to the total (from Content-Range) across multiple requests', async () => {
+    const server = makeVaultServer()
+    const plaintext = randomBytes(500)
+    const deps = depsFor(server, { partSize: 256 })
+    const hash = await uploadBlob(plaintext, deps)
+    const { bytes: stored } = await encryptBlob(plaintext, provideKey)
+
+    const progress = []
+    const out = await downloadBlobBytesChunked(hash, { ...deps, chunkSize: 64, onProgress: (r, t) => progress.push([r, t]) })
+    expect(out.length).toBe(stored.length)
+    expect(progress.length).toBeGreaterThan(1) // genuinely chunked
+    const last = progress[progress.length - 1]
+    expect(last[0]).toBe(stored.length) // received == full size
+    expect(last[1]).toBe(stored.length) // total known from Content-Range
+  })
+
+  it('falls back gracefully when the server ignores Range and returns the whole blob (200)', async () => {
+    const server = makeVaultServer()
+    const plaintext = randomBytes(300)
+    const deps = depsFor(server, { partSize: 256 })
+    const hash = await uploadBlob(plaintext, deps)
+    // Strip the Range header so the mock returns 200 with the full body.
+    const ignoresRange = (url, init) => {
+      if (init.method === 'GET' && /\/blobs\/[0-9a-f]{64}(\?|$)/.test(url)) {
+        const headers = { ...init.headers }
+        delete headers.Range
+        return server.fetchImpl(url, { ...init, headers })
+      }
+      return server.fetchImpl(url, init)
+    }
+    const out = await downloadBlobBytesChunked(hash, { ...deps, fetchImpl: ignoresRange, chunkSize: 64 })
+    const whole = await downloadBlobBytes(hash, deps)
+    expect([...out]).toEqual([...whole])
   })
 })
 

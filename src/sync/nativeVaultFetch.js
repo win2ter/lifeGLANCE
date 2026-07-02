@@ -41,9 +41,12 @@ function base64ToBytes(b64) {
   return out
 }
 
-const etagOf = (headers) => {
+// Case-insensitive header lookup over the CapacitorHttp response headers object,
+// so callers can read etag, Content-Range (chunked-download size/progress), etc.
+const headerGet = (headers, name) => {
   if (!headers) return null
-  for (const k of Object.keys(headers)) if (k.toLowerCase() === 'etag') return headers[k]
+  const lower = String(name).toLowerCase()
+  for (const k of Object.keys(headers)) if (k.toLowerCase() === lower) return headers[k]
   return null
 }
 
@@ -94,7 +97,7 @@ export function makeNativeVaultFetch(httpRequest = defaultNativeHttp) {
       ok,
       status,
       statusText: '',
-      headers: { get: (n) => (String(n).toLowerCase() === 'etag' ? (etagOf(res.headers) ?? null) : null) },
+      headers: { get: (n) => headerGet(res.headers, n) },
       text: async () => (bytes ? new TextDecoder().decode(bytes) : text),
       json: async () => JSON.parse(bytes ? new TextDecoder().decode(bytes) : text),
       arrayBuffer: async () => (bytes ? bytes.buffer : new TextEncoder().encode(text).buffer),

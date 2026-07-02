@@ -2,8 +2,11 @@ import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Capacitor } from '@capacitor/core'
 import { formatDateDisplay, relativeLabel, ageAtDate } from '../../utils/dates'
-import { dbGetMedia, dbGetPhoto } from '../../data/db'
-import { isRealBlobHash, fetchFullResBytes } from '../../blobs/milestoneMedia.js'
+import { dbGetMedia, dbGetPhoto, dbPutMedia } from '../../data/db'
+import { isRealBlobHash, fetchFullResBytes, fetchFullResBytesChunked } from '../../blobs/milestoneMedia.js'
+
+// Bytes → "X.X MB" for the download-progress label.
+const fmtMB = (n) => `${(n / 1048576).toFixed(1)} MB`
 
 const PINS_KEY = 'lifeglance-pins'
 // Color pin slots — each maps to its own countdown widget. Keep in sync with PIN_SLOTS
@@ -23,6 +26,7 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
   const { t: tc } = useTranslation('common')
   const [audioUrl,  setAudioUrl]  = useState(null)
   const [photoUrl,  setPhotoUrl]  = useState(null)
+  const [mediaLoading, setMediaLoading] = useState(null) // { received, total } while downloading a remote clip
   const [confirm,   setConfirm]   = useState(null)
   const [pins,      setPins]      = useState(readPins)
 
@@ -63,10 +67,23 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
     dbGetMedia(m.id).then(local => {
       if (cancelled) return
       if (local?.blob) { show(local.blob); return } // local-first: no download needed
-      if (isRealBlobHash(m.media_id)) {
-        const type = m.media_type === 'video' ? 'video/mp4' : 'audio/mpeg'
-        fetchFullResBytes(m.media_id).then(b => show(b && new Blob([b], { type }))).catch(() => {})
-      }
+      if (!isRealBlobHash(m.media_id)) return
+      // No local copy (a receiving device): download the blob in bounded chunks so a
+      // large video doesn't stall the WebView, decrypt, cache it locally so the next
+      // open is instant (local-first), then play. Progress drives the label below.
+      const type = m.media_type === 'video' ? 'video/mp4' : 'audio/mpeg'
+      setMediaLoading({ received: 0, total: null })
+      fetchFullResBytesChunked(m.media_id, {
+        onProgress: (received, total) => { if (!cancelled) setMediaLoading({ received, total }) },
+      }).then(async bytes => {
+        if (cancelled) return
+        if (!bytes) { setMediaLoading(null); return }
+        const blob = new Blob([bytes], { type })
+        try { await dbPutMedia(m.id, blob, type) } catch { /* cache is best-effort */ }
+        if (cancelled) return
+        setMediaLoading(null)
+        show(blob)
+      }).catch(() => { if (!cancelled) setMediaLoading(null) })
     }).catch(() => {})
     return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl) }
   }, [m.id, m.media_type, m.media_id])
@@ -169,7 +186,15 @@ export default function MilestoneDetail({ milestone: m, onClose, onEdit, onDelet
         )}
         {m.media_type && !audioUrl && (
           <div className="detail-audio-wrap detail-media-unavailable">
-            <span className="detail-media-unavailable-label">{t('mediaSyncedFromDevice')}</span>
+            <span className="detail-media-unavailable-label">
+              {mediaLoading
+                ? t('mediaDownloading', {
+                    progress: mediaLoading.total
+                      ? `${fmtMB(mediaLoading.received)} / ${fmtMB(mediaLoading.total)}`
+                      : fmtMB(mediaLoading.received),
+                  })
+                : t('mediaSyncedFromDevice')}
+            </span>
           </div>
         )}
 
