@@ -956,28 +956,40 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
         const baseYear = baseDate.getFullYear()
         const reqEnd   = milestoneData.recurrenceEndYear ?? Math.max(baseYear, new Date().getFullYear()) + 3
         const dates    = expandAnnualDates(baseDate, reqEnd)
+        // Which data repeats to every year (default: base-year only). note/link are
+        // cheap text; photo/media are physically copied per instance — the
+        // content-addressed vault dedupes identical bytes to a single remote blob,
+        // so the cost is local storage, not sync bandwidth.
+        const rep      = milestoneData.repeatData ?? { note: false, link: false, photo: false, media: false }
         const created  = []
         for (const d of dates) {
-          const isBase = d.getFullYear() === baseYear
+          const isBase    = d.getFullYear() === baseYear
+          const wantPhoto = (isBase || rep.photo) && !!milestoneData.has_photo
+          const wantMedia = (isBase || rep.media) && !!newMediaType
           const m = await addMilestone({
             ...milestoneData,
             date:          d,
             recurrence_id: rid,
-            // only the base-year instance keeps the original note / photo / media / url
-            note:       isBase ? milestoneData.note      : '',
+            // Base year always keeps the full record; siblings keep whichever
+            // fields the user opted to repeat.
+            note:       (isBase || rep.note) ? milestoneData.note : '',
+            url:        (isBase || rep.link) ? milestoneData.url  : '',
             photo_uri:  '',
-            has_photo:  isBase ? milestoneData.has_photo : false,
-            media_type: isBase ? newMediaType            : null,
-            url:        isBase ? milestoneData.url       : '',
+            has_photo:  wantPhoto,
+            media_type: wantMedia ? newMediaType : null,
           })
-          if (isBase && mediaFile) await dbPutMedia(m.id, mediaFile, mediaFile.type)
-          if (isBase && milestoneData.photoFile) await dbPutPhoto(m.id, milestoneData.photoFile, milestoneData.photoFile.type)
+          // Give each carrying instance its own local blob copy so it plays
+          // local-first; each uploads independently and dedupes remotely by hash.
+          if (wantMedia && mediaFile) await dbPutMedia(m.id, mediaFile, mediaFile.type)
+          if (wantPhoto && photoFile) await dbPutPhoto(m.id, photoFile, photoFile.type)
+          if (wantMedia || wantPhoto) {
+            backgroundEstablishMedia(m, wantPhoto ? photoFile : null, wantMedia ? mediaFile : null)
+          }
           created.push(m)
         }
         const newMs = [...milestones, ...created]
         pushHistory(newMs)
         setMilestones(newMs)
-        backgroundEstablishMedia(created[0], photoFile, mediaFile) // base-year instance holds the media
         setNewlyAddedId(created[0].id)
         audio.playChime()
       } else {
