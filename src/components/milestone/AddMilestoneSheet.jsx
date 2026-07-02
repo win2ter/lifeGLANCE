@@ -36,6 +36,10 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, draft = n
   const [mediaObjectUrl, setMediaObjectUrl] = useState(null)
   const [recurrence,      setRecurrence]      = useState(false)
   const [recEndYear,      setRecEndYear]      = useState('')
+  const [applyToSeries,   setApplyToSeries]   = useState(false)
+  // Which data repeats to every yearly instance (create mode). note + link
+  // default on (cheap text); photo + media default off (reference-shared blobs).
+  const [repeatData,      setRepeatData]      = useState({ note: true, link: true, photo: false, media: false })
   const [visibility,      setVisibility]      = useState(existing?.mainTimelineVisibility ?? 'inherit')
   const [trackAsDg,       setTrackAsDg]       = useState(existing?.dayglance_linked ?? false)
   const integrationActive = isIntegrationEnabled()
@@ -197,9 +201,11 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, draft = n
         closeChapterIds: isEdit ? undefined : [...closeChapterIds],
         recurrence: (!isEdit && recurrence) ? 'annual' : (existing?.recurrence ?? null),
         recurrence_id: existing?.recurrence_id ?? null,
+        applyToSeries: (isEdit && existing?.recurrence === 'annual') ? applyToSeries : false,
         recurrenceEndYear: (!isEdit && recurrence && year.length >= 4)
           ? (recEndYear ? Number(recEndYear) : Math.max(Number(year), new Date().getFullYear()) + 3)
           : undefined,
+        repeatData: (!isEdit && recurrence) ? repeatData : undefined,
         trackAsDayglanceGoal: integrationActive ? trackAsDg : false,
         dayglance_linked:       isEdit ? (integrationActive ? trackAsDg : (existing?.dayglance_linked ?? false)) : undefined,
         dayglance_task_id:      isEdit ? (existing?.dayglance_task_id ?? null)  : undefined,
@@ -307,6 +313,68 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, draft = n
             ))}
           </div>
         </div>
+
+        {/* Recurrence (new milestones only) — sits under the date, since it's a date concept */}
+        {!isEdit && (
+          <div className="sheet-field">
+            <label className="recurrence-toggle-row">
+              <span className="field-label" style={{ marginBottom: 0 }}>{t('repeatsAnnually')}</span>
+              <input type="checkbox" className="settings-toggle"
+                checked={recurrence}
+                onChange={e => { setRecurrence(e.target.checked); setRecEndYear('') }} />
+            </label>
+            {recurrence && year.length >= 4 && (() => {
+              const base  = Number(year)
+              const maxYear = base + 99
+              const end   = Math.min(
+                recEndYear ? Number(recEndYear) : Math.max(base, new Date().getFullYear()) + 3,
+                maxYear
+              )
+              const count = Math.max(0, end - base + 1)
+              return (
+                <div className="recurrence-range-row">
+                  <span className="recurrence-range-from">{year}</span>
+                  <span className="recurrence-range-arrow">→</span>
+                  <input
+                    type="number"
+                    className="input input-sm"
+                    style={{ width: '5.2rem' }}
+                    value={recEndYear}
+                    placeholder={String(Math.max(base, new Date().getFullYear()) + 3)}
+                    onChange={e => {
+                      const v = e.target.value
+                      if (!v) { setRecEndYear(''); return }
+                      setRecEndYear(String(Math.min(Math.max(Number(v), base), maxYear)))
+                    }}
+                    min={year}
+                    max={maxYear}
+                  />
+                  <span className="recurrence-range-count">
+                    {t('recurrenceCount', { count })}
+                  </span>
+                </div>
+              )
+            })()}
+            {recurrence && (
+              <div className="recurrence-repeat-data">
+                <div className="field-label" style={{ marginBottom: '0.25rem' }}>{t('repeatDataLabel')}</div>
+                {[
+                  { key: 'note',  label: t('repeatDataNote') },
+                  { key: 'link',  label: t('repeatDataLink') },
+                  { key: 'photo', label: t('repeatDataPhoto') },
+                  { key: 'media', label: t('repeatDataMedia') },
+                ].map(row => (
+                  <label key={row.key} className="recurrence-toggle-row">
+                    <span className="field-label" style={{ marginBottom: 0, fontWeight: 'normal' }}>{row.label}</span>
+                    <input type="checkbox" className="settings-toggle"
+                      checked={repeatData[row.key]}
+                      onChange={e => setRepeatData(d => ({ ...d, [row.key]: e.target.checked }))} />
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Category */}
         <div className="sheet-field">
@@ -440,52 +508,18 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, draft = n
           />
         </div>
 
-        {/* Recurrence (new milestones only) */}
-        {!isEdit && (
-          <div className="sheet-field">
-            <label className="recurrence-toggle-row">
-              <span className="field-label" style={{ marginBottom: 0 }}>{t('repeatsAnnually')}</span>
-              <input type="checkbox" className="settings-toggle"
-                checked={recurrence}
-                onChange={e => { setRecurrence(e.target.checked); setRecEndYear('') }} />
-            </label>
-            {recurrence && year.length >= 4 && (() => {
-              const base  = Number(year)
-              const maxYear = base + 99
-              const end   = Math.min(
-                recEndYear ? Number(recEndYear) : Math.max(base, new Date().getFullYear()) + 3,
-                maxYear
-              )
-              const count = Math.max(0, end - base + 1)
-              return (
-                <div className="recurrence-range-row">
-                  <span className="recurrence-range-from">{year}</span>
-                  <span className="recurrence-range-arrow">→</span>
-                  <input
-                    type="number"
-                    className="input input-sm"
-                    style={{ width: '5.2rem' }}
-                    value={recEndYear}
-                    placeholder={String(Math.max(base, new Date().getFullYear()) + 3)}
-                    onChange={e => {
-                      const v = e.target.value
-                      if (!v) { setRecEndYear(''); return }
-                      setRecEndYear(String(Math.min(Math.max(Number(v), base), maxYear)))
-                    }}
-                    min={year}
-                    max={maxYear}
-                  />
-                  <span className="recurrence-range-count">
-                    {t('recurrenceCount', { count })}
-                  </span>
-                </div>
-              )
-            })()}
-          </div>
-        )}
         {isEdit && existing?.recurrence === 'annual' && (
           <div className="sheet-field">
-            <div className="detail-recurrence-warn">{t('repeatsAnnuallyEditWarning')}</div>
+            <div className="detail-recurrence-warn">
+              {applyToSeries ? t('applyToSeriesWarning') : t('repeatsAnnuallyEditWarning')}
+            </div>
+            <label className="recurrence-toggle-row" style={{ marginTop: '0.5rem' }}>
+              <span className="field-label" style={{ marginBottom: 0 }}>{t('applyToSeries')}</span>
+              <input type="checkbox" className="settings-toggle"
+                checked={applyToSeries}
+                onChange={e => setApplyToSeries(e.target.checked)} />
+            </label>
+            <p className="settings-note" style={{ marginTop: '0.35rem' }}>{t('applyToSeriesNote')}</p>
           </div>
         )}
 

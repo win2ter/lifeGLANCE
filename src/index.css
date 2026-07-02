@@ -1318,6 +1318,14 @@ button, input, select, textarea {
 .recurrence-range-from  { font-size: 0.72rem; color: var(--text-muted); }
 .recurrence-range-arrow { font-size: 0.72rem; color: var(--text-muted); }
 .recurrence-range-count { font-size: 0.65rem; color: var(--text-muted); font-style: italic; }
+.recurrence-repeat-data {
+  margin-top: 0.5rem;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
 
 /* ─── Summary modal ─────────────────────────────────────────────────────────── */
 .summary-grid {
