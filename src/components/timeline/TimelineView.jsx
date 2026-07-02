@@ -878,7 +878,7 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
     // from the form — strip them before passing to the data layer and handle blob
     // persistence here.
     const { mediaFile, mediaRemoved, photoFile, photoRemoved, chapterIds, closeChapterIds,
-            trackAsDayglanceGoal, ...milestoneData } = data
+            trackAsDayglanceGoal, applyToSeries, ...milestoneData } = data
     const newMediaType = mediaFile
       ? (mediaFile.type.startsWith('video/') ? 'video' : 'audio')
       : null
@@ -901,7 +901,32 @@ export default function TimelineView({ milestones, setMilestones, chapters, setC
         if (mediaFile)    await dbPutMedia(updated.id, mediaFile, mediaFile.type)
         if (photoFile)    await dbPutPhoto(updated.id, photoFile, photoFile.type)
         if (photoRemoved) await dbDeletePhoto(updated.id)
-        const newMs = milestones.map(m => m.id === existing.id ? updated : m)
+        // "Apply to all yearly instances": propagate non-date, non-media scalar
+        // fields to every sibling sharing this recurrence_id. Date and attached
+        // media stay unique to the edited instance.
+        let updatedById = null
+        if (applyToSeries && existing.recurrence_id) {
+          const siblings = milestones.filter(
+            m => m.recurrence_id === existing.recurrence_id && m.id !== existing.id
+          )
+          if (siblings.length) {
+            updatedById = {}
+            for (const s of siblings) {
+              const su = await updateMilestone(s.id, {
+                title:                  updated.title,
+                category:               updated.category,
+                color:                  updated.color,
+                note:                   updated.note,
+                url:                    updated.url,
+                mainTimelineVisibility: updated.mainTimelineVisibility,
+              }, s)
+              updatedById[s.id] = su
+            }
+          }
+        }
+        const newMs = milestones.map(m =>
+          m.id === existing.id ? updated : (updatedById?.[m.id] ?? m)
+        )
         pushHistory(newMs)
         setMilestones(newMs)
         backgroundEstablishMedia(updated, photoFile, mediaFile)

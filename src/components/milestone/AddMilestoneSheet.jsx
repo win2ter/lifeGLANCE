@@ -36,6 +36,7 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, draft = n
   const [mediaObjectUrl, setMediaObjectUrl] = useState(null)
   const [recurrence,      setRecurrence]      = useState(false)
   const [recEndYear,      setRecEndYear]      = useState('')
+  const [applyToSeries,   setApplyToSeries]   = useState(false)
   const [visibility,      setVisibility]      = useState(existing?.mainTimelineVisibility ?? 'inherit')
   const [trackAsDg,       setTrackAsDg]       = useState(existing?.dayglance_linked ?? false)
   const integrationActive = isIntegrationEnabled()
@@ -197,6 +198,7 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, draft = n
         closeChapterIds: isEdit ? undefined : [...closeChapterIds],
         recurrence: (!isEdit && recurrence) ? 'annual' : (existing?.recurrence ?? null),
         recurrence_id: existing?.recurrence_id ?? null,
+        applyToSeries: (isEdit && existing?.recurrence === 'annual') ? applyToSeries : false,
         recurrenceEndYear: (!isEdit && recurrence && year.length >= 4)
           ? (recEndYear ? Number(recEndYear) : Math.max(Number(year), new Date().getFullYear()) + 3)
           : undefined,
@@ -485,7 +487,16 @@ export default function AddMilestoneSheet({ onSave, onClose, existing, draft = n
         )}
         {isEdit && existing?.recurrence === 'annual' && (
           <div className="sheet-field">
-            <div className="detail-recurrence-warn">{t('repeatsAnnuallyEditWarning')}</div>
+            <div className="detail-recurrence-warn">
+              {applyToSeries ? t('applyToSeriesWarning') : t('repeatsAnnuallyEditWarning')}
+            </div>
+            <label className="recurrence-toggle-row" style={{ marginTop: '0.5rem' }}>
+              <span className="field-label" style={{ marginBottom: 0 }}>{t('applyToSeries')}</span>
+              <input type="checkbox" className="settings-toggle"
+                checked={applyToSeries}
+                onChange={e => setApplyToSeries(e.target.checked)} />
+            </label>
+            <p className="settings-note" style={{ marginTop: '0.35rem' }}>{t('applyToSeriesNote')}</p>
           </div>
         )}
 
