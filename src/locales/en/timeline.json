@@ -2,7 +2,7 @@
   "today": "today",
   "ongoing": "ongoing",
   "onThisDay": "on this day",
-  "hiddenCount": "🚫 {{count}} hidden",
+  "hiddenCount": "{{count}} hidden",
   "hiddenMilestones": "hidden milestones",
   "hiddenMilestonesHint": "These are hidden from the main timeline. Tap one to open it, then Edit → Visibility to show it again.",
   "approx": "(approx.)",
