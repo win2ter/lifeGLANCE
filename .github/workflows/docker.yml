@@ -6,6 +6,11 @@ on:
   pull_request:
   release:
     types: [published]
+  # Manual "Run workflow" button. Pick a tag (e.g. v2.6.1) to rebuild and
+  # republish that release's image (metadata-action derives the version from the
+  # tag), or a branch to refresh `latest`. Useful when a release build wedges and
+  # needs re-running without cancelling or re-publishing the release.
+  workflow_dispatch:
 
 jobs:
   # Runs on every push and PR. Fails on lint errors; warnings are advisory and
@@ -111,10 +116,10 @@ jobs:
           docker rm -f lifeglance webdav || true
           docker network rm test-net || true
 
-  # Runs on release only, gated on test passing.
+  # Runs on a published release, or a manual dispatch, gated on test passing.
   publish-to-ghcr:
     needs: test
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
