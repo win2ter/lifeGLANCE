@@ -31,7 +31,7 @@
   "connectionFailed": "🚫 連線失敗: {{message}}",
   "pollInterval": "數據更新週期(分鐘)",
   "encryptEvents": "加密操作事件",
-  "encryptionNote": "設定雲端同步的加密金鑰(D-key)。設定一次，所有裝置通用。",
+  "encryptionNote": "設定數據同步的加密金鑰(D-key)。設定一次，所有裝置通用。",
   "enterPassphrase": "🔑 輸入加密金鑰(D-key)",
   "activating": "正在啟動…",
   "activate": "啟動",
