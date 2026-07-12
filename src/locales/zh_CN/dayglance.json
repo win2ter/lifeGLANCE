@@ -18,7 +18,7 @@
   "transportVault": "GLANCEvault",
   "vaultTransportNote": "沿用「🔄云端同步」的「GLANCEvault」同步设定，无需额外凭证，全程加密。",
   "vaultNotConfigured": "请先在「🔄云端同步」中完成「GLANCEvault」同步的设定，事件将经由Vault传送",
-  "webdavUrl": "WebDAV服务器地址",
+  "webdavUrl": "WebDAV伺服器地址",
   "username": "用户名 (User)",
   "passwordToken": "密码 / 令牌",
   "eventsPath": "Events存放路径",
